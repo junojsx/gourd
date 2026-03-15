@@ -162,6 +162,10 @@ struct SignInView: View {
         Button(action: {
             errorMessage = ""
             showResetConfirm = false
+            guard email.contains("@") && email.contains(".") else {
+                errorMessage = "Enter your email address first."
+                return
+            }
             Task {
                 do {
                     try await auth.resetPassword(email: email)

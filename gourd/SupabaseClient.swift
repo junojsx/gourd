@@ -3,19 +3,14 @@
 //  gourd
 //
 
+import Foundation
 import Supabase
 
 // ─── Singleton ───────────────────────────────────────────────────────────────
-// Replace the placeholder values below with your project credentials.
-// Supabase Dashboard → Project Settings → API
+// Credentials live in Secrets.swift (gitignored).
+// Copy Secrets.swift.example → Secrets.swift and fill in your values.
 
 let supabase = SupabaseClient(
-    supabaseURL: URL(string: SupabaseConfig.projectURL)!,
-    supabaseKey: SupabaseConfig.anonKey
+    supabaseURL: URL(string: Secrets.supabaseURL)!,
+    supabaseKey: Secrets.supabaseAnonKey
 )
-
-enum SupabaseConfig {
-    // TODO: Fill in your Supabase project URL and anon key
-    static let projectURL = "https://YOUR_PROJECT_ID.supabase.co"
-    static let anonKey    = "YOUR_ANON_KEY_HERE"
-}

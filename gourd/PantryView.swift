@@ -87,6 +87,7 @@ let mockItems: [PantryDisplayItem] = [
 struct PantryView: View {
     @State private var searchText      = ""
     @State private var selectedCategory: PantryCategory = .all
+    @State private var showScanner     = false
 
     private var filteredItems: [PantryDisplayItem] {
         var items = mockItems
@@ -139,7 +140,7 @@ struct PantryView: View {
             .background(Color.ftWarmBeige.ignoresSafeArea())
 
             // Scan FAB
-            Button(action: {}) {
+            Button(action: { showScanner = true }) {
                 Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
@@ -149,6 +150,11 @@ struct PantryView: View {
             }
             .padding(.trailing, 20)
             .padding(.bottom, 98)
+        }
+        .sheet(isPresented: $showScanner) {
+            ScanProductView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
         }
     }
 

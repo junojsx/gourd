@@ -16,7 +16,7 @@ struct ContentView: View {
             NavigationStack {
                 SignInView()
             }
-        case .authenticated:
+        case .authenticated(_):
             MainTabView()
         }
     }

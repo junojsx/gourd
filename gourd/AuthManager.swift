@@ -43,7 +43,7 @@ final class AuthManager {
         for await (_, session) in supabase.auth.authStateChanges {
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    self.authState = session.map { .authenticated($0) } ?? .unauthenticated
+                    self.authState = session.map { AuthManager.AuthState.authenticated($0) } ?? .unauthenticated
                 }
             }
         }
@@ -58,7 +58,7 @@ final class AuthManager {
         let response = try await supabase.auth.signUp(email: email, password: password)
         if let session = response.session {
             authState = .authenticated(session)
-            return false  // no confirmation needed
+            return false
         }
         return true  // email confirmation required
     }
@@ -78,7 +78,9 @@ final class AuthManager {
         isLoading = true
         defer { isLoading = false }
         try await supabase.auth.signOut()
-        authState = .unauthenticated
+        withAnimation(.easeInOut(duration: 0.25)) {
+            authState = .unauthenticated
+        }
     }
 
     // MARK: - Update Password
@@ -105,6 +107,8 @@ final class AuthManager {
         isLoading = true
         defer { isLoading = false }
         try await supabase.rpc("delete_account").execute()
-        authState = .unauthenticated
+        withAnimation(.easeInOut(duration: 0.25)) {
+            authState = .unauthenticated
+        }
     }
 }
