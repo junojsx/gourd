@@ -2,16 +2,17 @@
 //  gourdApp.swift
 //  gourd
 //
-//  Created by Justin Aquino on 3/13/26.
-//
 
 import SwiftUI
 
 @main
 struct gourdApp: App {
+    @State private var authManager = AuthManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authManager)
         }
     }
 }

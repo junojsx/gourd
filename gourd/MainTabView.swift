@@ -8,7 +8,7 @@ import SwiftUI
 // MARK: - App Tabs
 
 enum AppTab {
-    case home, pantry, lists, setup
+    case home, pantry, recipes, setup
 }
 
 // MARK: - MainTabView
@@ -22,8 +22,8 @@ struct MainTabView: View {
                 switch selectedTab {
                 case .home:   HomeView()
                 case .pantry: NavigationStack { PantryView() }
-                case .lists:  PlaceholderView(title: "Lists")
-                case .setup:  PlaceholderView(title: "Setup")
+                case .recipes:  RecipesTabView()
+                case .setup:  SetupView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -50,7 +50,7 @@ struct MainTabView: View {
                 // FAB center space
                 Spacer().frame(width: 72)
 
-                TabBarButton(icon: "list.bullet",      label: "LISTS",  tab: .lists,  selectedTab: $selectedTab)
+                TabBarButton(icon: "book.fill",      label: "RECIPES",  tab: .recipes,  selectedTab: $selectedTab)
                 TabBarButton(icon: "gearshape.fill",   label: "SETUP",  tab: .setup,  selectedTab: $selectedTab)
             }
             .padding(.horizontal, 8)

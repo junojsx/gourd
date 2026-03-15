@@ -2,14 +2,15 @@
 //  SignUpView.swift
 //  gourd
 //
-//  FreshTrack sign-up screen. Email-only, no backend.
-//
 
 import SwiftUI
 
 // MARK: - SignUpView
 
 struct SignUpView: View {
+    @Environment(AuthManager.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+
     @State private var email           = ""
     @State private var password        = ""
     @State private var confirmPassword = ""
@@ -21,7 +22,8 @@ struct SignUpView: View {
     @State private var passwordError        = ""
     @State private var confirmPasswordError = ""
 
-    @State private var didSignUp = false
+    @State private var errorMessage        = ""
+    @State private var awaitingConfirmation = false
 
     private var formIsValid: Bool {
         emailError.isEmpty && passwordError.isEmpty && confirmPasswordError.isEmpty
@@ -45,16 +47,42 @@ struct SignUpView: View {
                         .padding(.horizontal, 24)
                         .padding(.top, 28)
 
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .font(.ftBody(13))
+                            .foregroundStyle(Color.ftCrimson)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
                     signInPrompt
                         .padding(.top, 24)
                         .padding(.bottom, 48)
                 }
             }
+
+            // Loading overlay
+            if auth.isLoading {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                VStack(spacing: 14) {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.3)
+                    Text("Creating account...")
+                        .font(.ftBody(15, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+            }
         }
-        .alert("Welcome to Gourd!", isPresented: $didSignUp) {
-            Button("Continue", role: .cancel) { }
+        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .animation(.easeInOut(duration: 0.2), value: auth.isLoading)
+        .alert("Check your email", isPresented: $awaitingConfirmation) {
+            Button("OK", role: .cancel) { }
         } message: {
-            Text("Your account has been created. Connect a backend to persist your data.")
+            Text("We sent a confirmation link to \(email). Click it to activate your account.")
         }
     }
 
@@ -141,7 +169,7 @@ struct SignUpView: View {
             Text("Already have an account?")
                 .font(.ftBody(14))
                 .foregroundStyle(Color.ftDeepForest50)
-            Button("Sign In") { }
+            Button("Sign In") { dismiss() }
                 .font(.ftBody(14, weight: .semibold))
                 .foregroundStyle(Color.ftOlive)
         }
@@ -185,7 +213,17 @@ struct SignUpView: View {
         validatePassword()
         validateConfirmPassword()
         guard formIsValid else { return }
-        didSignUp = true
+        errorMessage = ""
+        Task {
+            do {
+                let needsConfirmation = try await auth.signUp(email: email, password: password)
+                if needsConfirmation {
+                    awaitingConfirmation = true
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
 
@@ -312,5 +350,8 @@ struct FTSecureField: View {
 // MARK: - Preview
 
 #Preview {
-    SignUpView()
+    NavigationStack {
+        SignUpView()
+    }
+    .environment(AuthManager())
 }
