@@ -111,11 +111,14 @@ private enum ScanState: Equatable {
 
 struct ScanProductView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(PantryRepository.self) private var repo
 
     @State private var state: ScanState = .requesting
     @State private var isPaused         = false
     @State private var torchOn          = false
     @State private var addedSuccess     = false
+    @State private var isSaving         = false
+    @State private var saveError: String?
     @State private var expirationDate   = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @State private var showManualAdd    = false
 
@@ -147,8 +150,17 @@ struct ScanProductView: View {
         }
         .task { await checkPermission() }
         .animation(.easeInOut(duration: 0.3), value: state)
+        .alert("Couldn't Add Item", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK") { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
         .sheet(isPresented: $showManualAdd) {
             ManualAddItemView()
+                .environment(repo)
         }
     }
 
@@ -354,7 +366,7 @@ struct ScanProductView: View {
                 DatePicker("", selection: $expirationDate, in: Date()..., displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
-                    .tint(Color.ftOlive)
+                    .tint(Color.ftDeepForest)
             }
             .padding(.horizontal, 20)
             .padding(.top, 14)
@@ -362,14 +374,41 @@ struct ScanProductView: View {
             // Action buttons
             HStack(spacing: 12) {
                 Button(action: {
-                    let impact = UINotificationFeedbackGenerator()
-                    impact.notificationOccurred(.success)
-                    withAnimation { addedSuccess = true }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
+                    guard !isSaving else { return }
+                    isSaving = true
+                    Task {
+                        do {
+                            let insert = try await repo.makeInsert(
+                                name: product.name,
+                                brand: product.brand,
+                                barcode: product.barcode,
+                                imageUrl: product.imageURL,
+                                category: ItemCategory(fromOFFTag: product.rawCategory),
+                                storageLocation: .fridge,
+                                addedVia: .barcode,
+                                quantity: 1.0,
+                                unit: "item",
+                                expiryDate: expirationDate
+                            )
+                            try await repo.addItem(insert)
+                            let impact = UINotificationFeedbackGenerator()
+                            impact.notificationOccurred(.success)
+                            withAnimation { addedSuccess = true }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
+                        } catch {
+                            isSaving = false
+                            print("❌ addItem error:", error)
+                            saveError = error.localizedDescription
+                        }
+                    }
                 }) {
                     HStack(spacing: 8) {
-                        Image(systemName: addedSuccess ? "checkmark" : "plus")
-                            .font(.system(size: 14, weight: .bold))
+                        if isSaving && !addedSuccess {
+                            ProgressView().tint(.white).scaleEffect(0.8)
+                        } else {
+                            Image(systemName: addedSuccess ? "checkmark" : "plus")
+                                .font(.system(size: 14, weight: .bold))
+                        }
                         Text(addedSuccess ? "Added to Pantry!" : "Add to Pantry")
                             .font(.ftBody(15, weight: .semibold))
                     }
@@ -381,7 +420,7 @@ struct ScanProductView: View {
                             .fill(addedSuccess ? Color.ftOlive : Color.ftDeepForest)
                     )
                 }
-                .disabled(addedSuccess)
+                .disabled(addedSuccess || isSaving)
 
                 Button(action: scanAgain) {
                     Text("Scan Again")
@@ -504,6 +543,8 @@ struct ScanProductView: View {
 
     private func scanAgain() {
         addedSuccess = false
+        isSaving = false
+        saveError = nil
         expirationDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         isPaused = false
         state = .scanning
@@ -553,13 +594,17 @@ private struct ScannerFrame: Shape {
 
 struct ManualAddItemView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(PantryRepository.self) private var repo
 
-    @State private var name         = ""
-    @State private var brand        = ""
-    @State private var quantity     = ""
-    @State private var category: PantryCategory = .other
-    @State private var expirationDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-    @State private var addedSuccess = false
+    @State private var name            = ""
+    @State private var brand           = ""
+    @State private var unit            = "item"
+    @State private var quantity        = 1.0
+    @State private var category        = ItemCategory.other
+    @State private var storageLocation = StorageLocation.fridge
+    @State private var expirationDate  = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+    @State private var addedSuccess    = false
+    @State private var isSaving        = false
 
     private var canAdd: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -567,35 +612,85 @@ struct ManualAddItemView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
-                    // Name
                     formField(label: "Item Name", required: true) {
+
                         TextField("e.g. Almond Milk", text: $name)
                             .font(.ftBody(15))
                             .foregroundStyle(Color.ftDeepForest)
                             .autocorrectionDisabled()
+                            .submitLabel(.next)
                     }
 
-                    // Brand
                     formField(label: "Brand", required: false) {
                         TextField("e.g. Silk", text: $brand)
                             .font(.ftBody(15))
                             .foregroundStyle(Color.ftDeepForest)
                             .autocorrectionDisabled()
+                            .submitLabel(.done)
                     }
 
-                    // Quantity
-                    formField(label: "Quantity", required: false) {
-                        TextField("e.g. 1 gallon", text: $quantity)
-                            .font(.ftBody(15))
-                            .foregroundStyle(Color.ftDeepForest)
-                            .autocorrectionDisabled()
+                    // Quantity + unit on one row
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Quantity")
+                            .font(.ftBody(13, weight: .semibold))
+                            .foregroundStyle(Color.ftDeepForest.opacity(0.6))
+                        HStack(spacing: 12) {
+                            // Stepper
+                            HStack(spacing: 16) {
+                                Button(action: { if quantity > 0.5 { quantity -= 0.5 } }) {
+                                    Image(systemName: "minus")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(Color.ftOlive)
+                                        .frame(width: 32, height: 32)
+                                        .background(Circle().strokeBorder(Color.ftOlive, lineWidth: 1.5))
+                                }
+                                Text(quantity == floor(quantity)
+                                     ? String(Int(quantity))
+                                     : String(format: "%.1f", quantity))
+                                    .font(.ftBody(16, weight: .semibold))
+                                    .foregroundStyle(Color.ftDeepForest)
+                                    .frame(minWidth: 24)
+                                Button(action: { quantity += 0.5 }) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 32, height: 32)
+                                        .background(Circle().fill(Color.ftOlive))
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.8))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
+                                    )
+                            )
+                            // Unit field
+                            TextField("unit", text: $unit)
+                                .font(.ftBody(15))
+                                .foregroundStyle(Color.ftDeepForest)
+                                .autocorrectionDisabled()
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.white.opacity(0.8))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
+                                        )
+                                )
+                        }
                     }
 
-                    // Category
                     formField(label: "Category", required: false) {
                         Picker("Category", selection: $category) {
-                            ForEach(PantryCategory.allCases.filter { $0 != .all }, id: \.self) { cat in
-                                Text(cat.rawValue).tag(cat)
+                            ForEach(ItemCategory.allCases, id: \.self) { cat in
+                                Text(cat.displayName).tag(cat)
                             }
                         }
                         .pickerStyle(.menu)
@@ -603,19 +698,32 @@ struct ManualAddItemView: View {
                         .font(.ftBody(15))
                     }
 
-                    // Expiration date
+                    formField(label: "Storage Location", required: false) {
+                        Picker("Storage", selection: $storageLocation) {
+                            ForEach(StorageLocation.allCases, id: \.self) { loc in
+                                Label(loc.displayName, systemImage: loc.systemImage).tag(loc)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(Color.ftDeepForest)
+                        .font(.ftBody(15))
+                    }
+
                     formField(label: "Expiration Date", required: false) {
                         DatePicker("", selection: $expirationDate, in: Date()..., displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
-                            .tint(Color.ftOlive)
+                            .tint(Color.ftDeepForest)
                     }
 
-                    // Add button
-                    Button(action: addItem) {
+                    Button(action: saveItem) {
                         HStack(spacing: 8) {
-                            Image(systemName: addedSuccess ? "checkmark" : "plus")
-                                .font(.system(size: 14, weight: .bold))
+                            if isSaving && !addedSuccess {
+                                ProgressView().tint(.white).scaleEffect(0.8)
+                            } else {
+                                Image(systemName: addedSuccess ? "checkmark" : "plus")
+                                    .font(.system(size: 14, weight: .bold))
+                            }
                             Text(addedSuccess ? "Added to Pantry!" : "Add to Pantry")
                                 .font(.ftBody(16, weight: .semibold))
                         }
@@ -624,16 +732,21 @@ struct ManualAddItemView: View {
                         .padding(.vertical, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(addedSuccess ? Color.ftOlive : (canAdd ? Color.ftDeepForest : Color.ftDeepForest.opacity(0.3)))
+                                .fill(
+                                    addedSuccess  ? Color.ftOlive :
+                                    canAdd        ? Color.ftDeepForest :
+                                                    Color.ftDeepForest.opacity(0.3)
+                                )
                         )
                     }
-                    .disabled(!canAdd || addedSuccess)
+                    .disabled(!canAdd || addedSuccess || isSaving)
                     .padding(.top, 8)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color.ftWarmBeige.ignoresSafeArea())
             .navigationTitle("Add Item Manually")
             .navigationBarTitleDisplayMode(.inline)
@@ -642,6 +755,16 @@ struct ManualAddItemView: View {
                     Button("Cancel") { dismiss() }
                         .font(.ftBody(15))
                         .foregroundStyle(Color.ftDeepForest)
+                }
+                ToolbarItem(placement: .keyboard) {
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                    .font(.ftBody(15, weight: .semibold))
+                    .foregroundStyle(Color.ftDeepForest)
                 }
             }
         }
@@ -654,9 +777,7 @@ struct ManualAddItemView: View {
                     .font(.ftBody(13, weight: .semibold))
                     .foregroundStyle(Color.ftDeepForest.opacity(0.6))
                 if required {
-                    Text("*")
-                        .font(.ftBody(13, weight: .bold))
-                        .foregroundStyle(Color.ftCrimson)
+                    Text("*").font(.ftBody(13, weight: .bold)).foregroundStyle(Color.ftCrimson)
                 }
             }
             HStack {
@@ -676,11 +797,32 @@ struct ManualAddItemView: View {
         }
     }
 
-    private func addItem() {
-        let impact = UINotificationFeedbackGenerator()
-        impact.notificationOccurred(.success)
-        withAnimation { addedSuccess = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
+    private func saveItem() {
+        guard canAdd, !isSaving else { return }
+        isSaving = true
+        Task {
+            do {
+                let trimmedName  = name.trimmingCharacters(in: .whitespaces)
+                let trimmedBrand = brand.trimmingCharacters(in: .whitespaces)
+                let insert = try await repo.makeInsert(
+                    name: trimmedName,
+                    brand: trimmedBrand.isEmpty ? nil : trimmedBrand,
+                    category: category,
+                    storageLocation: storageLocation,
+                    addedVia: .manual,
+                    quantity: quantity,
+                    unit: unit,
+                    expiryDate: expirationDate
+                )
+                try await repo.addItem(insert)
+                let impact = UINotificationFeedbackGenerator()
+                impact.notificationOccurred(.success)
+                withAnimation { addedSuccess = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
+            } catch {
+                isSaving = false
+            }
+        }
     }
 }
 

@@ -6,6 +6,8 @@
 import SwiftUI
 
 struct HomeView: View {
+    @Environment(PantryRepository.self) private var repo
+
     var body: some View {
         VStack(spacing: 0) {
             navBar
@@ -78,9 +80,9 @@ struct HomeView: View {
 
     // MARK: - Pantry Stats Card
 
-    private var totalItems:    Int { mockItems.count }
-    private var expiringItems: Int { mockItems.filter { if case .expToday = $0.badge { return true }; if case .expDays = $0.badge { return true }; return false }.count }
-    private var expiredItems:  Int { mockItems.filter { if case .expired  = $0.badge { return true }; return false }.count }
+    private var totalItems:    Int { repo.items.count }
+    private var expiringItems: Int { repo.items.filter { [.useSoon, .urgent].contains($0.freshnessGrade) }.count }
+    private var expiredItems:  Int { repo.items.filter { $0.freshnessGrade == .expired }.count }
 
     private var pantryStatsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -242,4 +244,5 @@ struct FeatureCard: View {
 
 #Preview {
     HomeView()
+        .environment(PantryRepository())
 }

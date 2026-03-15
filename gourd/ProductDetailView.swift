@@ -6,28 +6,27 @@
 import SwiftUI
 
 struct ProductDetailView: View {
-    let item: PantryDisplayItem
+    let item: PantryItem
 
-    @State private var quantity: Double = 1.0
-    @State private var isConsumed = false
+    @State private var quantity: Double
+    @State private var isMarkingConsumed = false
+    @Environment(PantryRepository.self) private var repo
     @Environment(\.dismiss) private var dismiss
+
+    init(item: PantryItem) {
+        self.item = item
+        _quantity = State(initialValue: item.quantity)
+    }
 
     // MARK: - Derived helpers
 
     private var expiryMessage: String? {
-        switch item.badge {
-        case .expToday:       return "Expires today"
-        case .expDays(let d): return "Expires in \(d) day\(d == 1 ? "" : "s")"
-        case .expired:        return "This item has expired"
-        case .fresh:          return nil
-        }
-    }
-
-    private var expiryIsUrgent: Bool {
-        switch item.badge {
-        case .expToday, .expired: return true
-        case .expDays(let d):     return d <= 3
-        default:                  return false
+        guard let days = item.daysUntilExpiry else { return nil }
+        switch days {
+        case ..<0: return "This item has expired"
+        case 0:    return "Expires today"
+        case 1:    return "Expires tomorrow"
+        default:   return "Expires in \(days) days"
         }
     }
 
@@ -37,19 +36,34 @@ struct ProductDetailView: View {
             return ("refrigerator", "Keep refrigerated at 4°C",
                     "Store on the middle shelf. Avoid keeping dairy in the door to maintain consistent temperature.")
         case .produce:
-            return ("leaf", "Store in the crisper drawer",
+            return ("leaf.fill", "Store in the crisper drawer",
                     "Keep away from ethylene-producing fruits like apples. Maintain humidity for leafy greens.")
-        case .staples:
-            return ("cabinet", "Store in a cool, dry place",
-                    "Keep sealed to maintain freshness. Avoid exposure to moisture and direct sunlight.")
+        case .meat:
+            return ("refrigerator", "Keep refrigerated below 4°C",
+                    "Store on the bottom shelf to prevent cross-contamination. Use within 1–2 days or freeze.")
         case .frozen:
             return ("snowflake", "Keep frozen at −18°C",
                     "Seal tightly to prevent freezer burn. Thaw in the refrigerator overnight before use.")
-        default:
-            return ("shippingbox", "Store properly",
+        case .bakery:
+            return ("cabinet.fill", "Keep in a bread box or sealed bag",
+                    "Store at room temperature away from moisture. Freeze sliced bread to extend freshness.")
+        case .canned:
+            return ("cabinet.fill", "Store in a cool, dry place",
+                    "Keep sealed in the original can. Once opened, transfer to a covered container in the fridge.")
+        case .beverage:
+            return ("refrigerator", "Keep refrigerated after opening",
+                    "Store upright to prevent leaks. Consume within the timeframe on the label once opened.")
+        case .other:
+            return ("shippingbox.fill", "Store properly",
                     "Follow the manufacturer's storage instructions to ensure maximum freshness and safety.")
         }
     }
+
+    private static let displayDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
 
     // MARK: - Body
 
@@ -66,7 +80,8 @@ struct ProductDetailView: View {
         .safeAreaInset(edge: .bottom) {
             markAsConsumedButton
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 90)
                 .background(Color.ftWarmBeige)
         }
         .navigationBarBackButtonHidden(true)
@@ -84,24 +99,28 @@ struct ProductDetailView: View {
                     .foregroundStyle(Color.ftDeepForest)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {}) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.ftDeepForest)
+                Button(action: {
+                    Task { try? await repo.deleteItem(item.id) }
+                    dismiss()
+                }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.ftCrimson)
                 }
             }
         }
-        .toolbarBackground(Color.ftWarmBeige, for: .navigationBar)
+        .toolbarBackground(Color.ftWarmBeige.opacity(1), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.light, for: .navigationBar)
     }
 
     // MARK: - Hero Image
 
     private var heroImage: some View {
         ProductImage(
-            urlString: item.imageURL,
-            fallbackIcon: item.iconName,
-            fallbackBg: item.iconBg,
+            urlString: item.imageUrl ?? "",
+            fallbackIcon: item.category.systemImage,
+            fallbackBg: item.category.iconBgColor,
             cornerRadius: 16
         )
         .frame(maxWidth: .infinity)
@@ -114,15 +133,13 @@ struct ProductDetailView: View {
 
     private var contentBlock: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Name + category badge on same row
             HStack(alignment: .top, spacing: 10) {
                 Text(item.name)
                     .font(.system(size: 20, weight: .bold, design: .serif))
                     .foregroundStyle(Color.ftDeepForest)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
-                // White on Deep Forest #2D3A2D = 7.2:1 → WCAG AAA ✓
-                Text(item.category.rawValue.uppercased())
+                Text(item.category.displayName.uppercased())
                     .font(.ftBody(11, weight: .semibold))
                     .kerning(0.5)
                     .foregroundStyle(.white)
@@ -132,10 +149,7 @@ struct ProductDetailView: View {
                     .padding(.top, 2)
             }
 
-            // Expiry badge
             if let msg = expiryMessage {
-                // White on Crimson #7E2224 = 5.9:1 → WCAG AA ✓
-                // White on Bronze #94632F = 4.6:1 → WCAG AA ✓
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 13))
@@ -145,20 +159,17 @@ struct ProductDetailView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(Capsule().fill(expiryIsUrgent ? Color.ftCrimson : Color.ftBronze))
+                .background(Capsule().fill(item.isUrgent ? Color.ftCrimson : Color.ftBronze))
             }
 
-            // Current Stock
             sectionLabel("CURRENT STOCK")
             currentStockRow
 
-            // Storage Guidelines
             sectionLabel("STORAGE GUIDELINES")
             storageGuidelinesCard
 
-            // Consumption History
-            sectionLabel("CONSUMPTION HISTORY")
-            consumptionHistoryCard
+            sectionLabel("DETAILS")
+            detailsCard
         }
     }
 
@@ -167,10 +178,10 @@ struct ProductDetailView: View {
     private var currentStockRow: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(String(format: "%.1f", quantity))
+                Text(String(format: quantity == floor(quantity) ? "%.0f" : "%.1f", quantity))
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.ftDeepForest)
-                Text(item.detail)
+                Text(item.unit)
                     .font(.ftBody(13))
                     .foregroundStyle(Color.ftDeepForest50)
             }
@@ -183,16 +194,8 @@ struct ProductDetailView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(Color.ftOlive)
                         .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .strokeBorder(Color.ftOlive, lineWidth: 1.5)
-                        )
+                        .background(Circle().strokeBorder(Color.ftOlive, lineWidth: 1.5))
                 }
-
-                Text(String(format: "%.0f", quantity * 2 == floor(quantity * 2) ? quantity : quantity))
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.ftDeepForest)
-                    .frame(minWidth: 24)
 
                 Button(action: { quantity += 0.5 }) {
                     Image(systemName: "plus")
@@ -219,7 +222,6 @@ struct ProductDetailView: View {
                     .font(.system(size: 16))
                     .foregroundStyle(Color.ftOlive)
             }
-
             VStack(alignment: .leading, spacing: 4) {
                 Text(storageTip.title)
                     .font(.ftBody(14, weight: .semibold))
@@ -234,28 +236,46 @@ struct ProductDetailView: View {
         .background(cardBackground)
     }
 
-    // MARK: - Consumption History
+    // MARK: - Details Card
 
-    private var consumptionHistoryCard: some View {
+    private var detailsCard: some View {
         VStack(spacing: 0) {
-            historyRow(
-                icon: "bag.fill",
-                label: "Last Purchased",
-                value: "Oct 12, 2025"
-            )
-            Divider()
-                .background(Color.ftSoftClay.opacity(0.5))
-                .padding(.leading, 54)
-            historyRow(
-                icon: "fork.knife",
-                label: "Last Consumed",
-                value: "Today, 8:45 AM"
+            if let brand = item.brand {
+                detailRow(icon: "tag.fill", label: "Brand", value: brand)
+                Divider()
+                    .background(Color.ftSoftClay.opacity(0.5))
+                    .padding(.leading, 54)
+            }
+            if let purchaseDate = item.purchaseDate {
+                detailRow(
+                    icon: "bag.fill",
+                    label: "Purchased",
+                    value: Self.displayDateFormatter.string(from: purchaseDate)
+                )
+                Divider()
+                    .background(Color.ftSoftClay.opacity(0.5))
+                    .padding(.leading, 54)
+            }
+            if let expiryDate = item.expiryDate {
+                detailRow(
+                    icon: "calendar",
+                    label: "Expires",
+                    value: Self.displayDateFormatter.string(from: expiryDate)
+                )
+                Divider()
+                    .background(Color.ftSoftClay.opacity(0.5))
+                    .padding(.leading, 54)
+            }
+            detailRow(
+                icon: item.storageLocation.systemImage,
+                label: "Storage",
+                value: item.storageLocation.displayName
             )
         }
         .background(cardBackground)
     }
 
-    private func historyRow(icon: String, label: String, value: String) -> some View {
+    private func detailRow(icon: String, label: String, value: String) -> some View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
@@ -265,13 +285,10 @@ struct ProductDetailView: View {
                     .font(.system(size: 15))
                     .foregroundStyle(Color.ftDeepForest.opacity(0.5))
             }
-
             Text(label)
                 .font(.ftBody(14))
                 .foregroundStyle(Color.ftDeepForest)
-
             Spacer()
-
             Text(value)
                 .font(.ftBody(13))
                 .foregroundStyle(Color.ftDeepForest50)
@@ -283,18 +300,36 @@ struct ProductDetailView: View {
     // MARK: - Mark as Consumed
 
     private var markAsConsumedButton: some View {
-        Button(action: { isConsumed.toggle() }) {
-            Text(isConsumed ? "Marked as Consumed ✓" : "Mark as Consumed")
-                .font(.ftBody(16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(isConsumed ? Color.ftOlive : Color.ftDeepForest)
-                )
+        Button(action: {
+            guard !isMarkingConsumed else { return }
+            isMarkingConsumed = true
+            Task {
+                try? await repo.markConsumed(item.id)
+                dismiss()
+            }
+        }) {
+            HStack(spacing: 8) {
+                if isMarkingConsumed {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                Text(isMarkingConsumed ? "Marking..." : "Mark as Consumed")
+                    .font(.ftBody(16, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(isMarkingConsumed ? Color.ftOlive : Color.ftDeepForest)
+            )
         }
-        .animation(.easeInOut(duration: 0.2), value: isConsumed)
+        .disabled(isMarkingConsumed)
+        .animation(.easeInOut(duration: 0.2), value: isMarkingConsumed)
         .ftShadowMd()
     }
 
@@ -319,6 +354,7 @@ struct ProductDetailView: View {
 
 #Preview {
     NavigationStack {
-        ProductDetailView(item: mockItems[0])
+        ProductDetailView(item: .preview)
+            .environment(PantryRepository())
     }
 }

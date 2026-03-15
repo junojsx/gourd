@@ -125,7 +125,7 @@ final class BarcodeScannerController: UIViewController, AVCaptureMetadataOutputO
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(subjectAreaDidChange),
-            name: .AVCaptureDeviceSubjectAreaDidChange,
+            name: AVCaptureDevice.subjectAreaDidChangeNotification,
             object: device
         )
     }
