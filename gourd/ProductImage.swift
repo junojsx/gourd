@@ -15,38 +15,46 @@ struct ProductImage: View {
 
     var body: some View {
         GeometryReader { geo in
-            AsyncImage(url: URL(string: urlString)) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
+            let url = URL(string: urlString)
+            if url == nil {
+                // No image URL — show GourdLogo immediately without a loading spinner
+                gourdPlaceholder(size: geo.size)
+            } else {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    case .failure:
+                        gourdPlaceholder(size: geo.size)
+                    case .empty:
+                        ZStack {
+                            fallbackBg
+                            ProgressView()
+                                .tint(Color.ftDeepForest.opacity(0.4))
+                        }
                         .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
-                case .failure:
-                    fallbackView(size: geo.size)
-                case .empty:
-                    ZStack {
-                        fallbackBg
-                        ProgressView()
-                            .tint(Color.ftDeepForest.opacity(0.4))
+                    @unknown default:
+                        gourdPlaceholder(size: geo.size)
                     }
-                    .frame(width: geo.size.width, height: geo.size.height)
-                @unknown default:
-                    fallbackView(size: geo.size)
                 }
+                .frame(width: geo.size.width, height: geo.size.height)
             }
-            .frame(width: geo.size.width, height: geo.size.height)
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 
-    private func fallbackView(size: CGSize) -> some View {
+    private func gourdPlaceholder(size: CGSize) -> some View {
         ZStack {
             fallbackBg
-            Image(systemName: fallbackIcon)
-                .font(.system(size: min(size.width, size.height) * 0.3))
-                .foregroundStyle(Color.ftDeepForest.opacity(0.35))
+            Image("GourdLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: min(size.width, size.height) * 0.55)
+                .opacity(0.35)
         }
         .frame(width: size.width, height: size.height)
     }

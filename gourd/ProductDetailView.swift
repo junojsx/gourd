@@ -299,13 +299,37 @@ struct ProductDetailView: View {
 
     // MARK: - Mark as Consumed
 
+    private var consumeButtonLabel: String {
+        if quantity <= 0.5 {
+            return "Use Last & Remove"
+        } else {
+            return "Use One (\(item.quantityDisplay) left)"
+        }
+    }
+
     private var markAsConsumedButton: some View {
         Button(action: {
             guard !isMarkingConsumed else { return }
             isMarkingConsumed = true
             Task {
-                try? await repo.markConsumed(item.id)
-                dismiss()
+                if quantity <= 0.5 {
+                    // Last bit — mark fully consumed
+                    do {
+                        try await repo.markConsumed(item.id)
+                    } catch {
+                        print("❌ markConsumed error:", error)
+                        // Refetch to sync state even if update had issues
+                        await repo.fetchItems()
+                    }
+                    dismiss()
+                } else {
+                    // Decrease by 1, but floor at 0.5
+                    quantity = max(0.5, quantity - 1)
+                    var updated = item
+                    updated.quantity = quantity
+                    try? await repo.updateItem(updated)
+                    isMarkingConsumed = false
+                }
             }
         }) {
             HStack(spacing: 8) {
@@ -314,10 +338,10 @@ struct ProductDetailView: View {
                         .tint(.white)
                         .scaleEffect(0.8)
                 } else {
-                    Image(systemName: "checkmark.circle")
+                    Image(systemName: quantity <= 0.5 ? "trash" : "minus.circle")
                         .font(.system(size: 16, weight: .semibold))
                 }
-                Text(isMarkingConsumed ? "Marking..." : "Mark as Consumed")
+                Text(isMarkingConsumed ? "Updating..." : consumeButtonLabel)
                     .font(.ftBody(16, weight: .semibold))
             }
             .foregroundStyle(.white)
@@ -325,11 +349,12 @@ struct ProductDetailView: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isMarkingConsumed ? Color.ftOlive : Color.ftDeepForest)
+                    .fill(quantity <= 0.5 ? Color.ftCrimson : Color.ftDeepForest)
             )
         }
         .disabled(isMarkingConsumed)
         .animation(.easeInOut(duration: 0.2), value: isMarkingConsumed)
+        .animation(.easeInOut(duration: 0.2), value: quantity)
         .ftShadowMd()
     }
 

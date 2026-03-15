@@ -14,7 +14,9 @@ enum AppTab {
 // MARK: - MainTabView
 
 struct MainTabView: View {
+    @Environment(PantryRepository.self) private var repo
     @State private var selectedTab: AppTab = .home
+    @State private var showQuickScan = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -31,6 +33,12 @@ struct MainTabView: View {
             tabBar
         }
         .ignoresSafeArea(edges: .bottom)
+        .sheet(isPresented: $showQuickScan) {
+            ScanProductView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .environment(repo)
+        }
     }
 
     // MARK: - Tab Bar
@@ -56,9 +64,9 @@ struct MainTabView: View {
             .padding(.horizontal, 8)
             .padding(.top, 10)
 
-            // FAB
-            Button(action: {}) {
-                Image(systemName: "plus")
+            // FAB — Quick Scan
+            Button(action: { showQuickScan = true }) {
+                Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 54, height: 54)

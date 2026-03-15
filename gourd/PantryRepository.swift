@@ -20,6 +20,39 @@ final class PantryRepository {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
+    // MARK: - Cache
+
+    private static let cacheKey = "pantry_items_cache"
+
+    private static let cacheEncoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        return e
+    }()
+
+    private static let cacheDecoder: JSONDecoder = {
+        JSONDecoder()  // PantryItem uses its own custom init(from:) for date parsing
+    }()
+
+    init() {
+        // Load cached items immediately so the UI isn't blank while the network call is in flight
+        if let data = UserDefaults.standard.data(forKey: Self.cacheKey),
+           let cached = try? Self.cacheDecoder.decode([PantryItem].self, from: data) {
+            items = cached
+        }
+    }
+
+    private func persistCache() {
+        if let data = try? Self.cacheEncoder.encode(items) {
+            UserDefaults.standard.set(data, forKey: Self.cacheKey)
+        }
+    }
+
+    func clearCache() {
+        items = []
+        UserDefaults.standard.removeObject(forKey: Self.cacheKey)
+    }
+
     // MARK: - Fetch
 
     func fetchItems() async {
@@ -33,6 +66,7 @@ final class PantryRepository {
                 .order("expiry_date", ascending: true)
                 .execute()
                 .value
+            persistCache()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -51,6 +85,7 @@ final class PantryRepository {
             .execute()
             .value
         insertSorted(item)
+        persistCache()
         return item
     }
 
@@ -68,6 +103,7 @@ final class PantryRepository {
         if let idx = items.firstIndex(where: { $0.id == item.id }) {
             items[idx] = updated
         }
+        persistCache()
     }
 
     // MARK: - Delete
@@ -79,21 +115,28 @@ final class PantryRepository {
             .eq("id", value: id.uuidString)
             .execute()
         items.removeAll { $0.id == id }
+        persistCache()
     }
 
     // MARK: - Mark Consumed
 
     func markConsumed(_ id: UUID) async throws {
-        // The on_item_consumed trigger auto-sets consumed_at
-        struct ConsumedPayload: Encodable { let isConsumed = true
-            enum CodingKeys: String, CodingKey { case isConsumed = "is_consumed" }
+        struct ConsumedPayload: Encodable {
+            let isConsumed = true
+            let consumedAt: String
+            enum CodingKeys: String, CodingKey {
+                case isConsumed = "is_consumed"
+                case consumedAt = "consumed_at"
+            }
         }
+        let now = ISO8601DateFormatter().string(from: Date())
         try await supabase
             .from("pantry_items")
-            .update(ConsumedPayload())
+            .update(ConsumedPayload(consumedAt: now))
             .eq("id", value: id.uuidString)
             .execute()
         items.removeAll { $0.id == id }
+        persistCache()
     }
 
     // MARK: - Build Insert

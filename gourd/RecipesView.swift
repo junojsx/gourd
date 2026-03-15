@@ -20,14 +20,25 @@ enum IngredientGroup: String, CaseIterable {
     case pantryStaples = "PANTRY STAPLES"
 }
 
-struct GeneratedRecipe: Identifiable {
-    let id = UUID()
+struct GeneratedRecipe: Identifiable, Codable {
+    let id: UUID
     let title: String
     let prepTime: String
     let difficulty: String
     let heroImageURL: String
     let ingredients: [String]
     let steps: [String]
+
+    init(id: UUID = UUID(), title: String, prepTime: String, difficulty: String,
+         heroImageURL: String, ingredients: [String], steps: [String]) {
+        self.id = id
+        self.title = title
+        self.prepTime = prepTime
+        self.difficulty = difficulty
+        self.heroImageURL = heroImageURL
+        self.ingredients = ingredients
+        self.steps = steps
+    }
 }
 
 // MARK: - Mock Data
@@ -121,8 +132,24 @@ private let mockSavedRecipes: [GeneratedRecipe] = [
 
 // MARK: - RecipesTabView
 
+private let savedRecipesKey = "saved_recipes"
+
+private func loadRecipes() -> [GeneratedRecipe] {
+    guard let data = UserDefaults.standard.data(forKey: savedRecipesKey),
+          let recipes = try? JSONDecoder().decode([GeneratedRecipe].self, from: data)
+    else { return [] }
+    return recipes
+}
+
+private func saveRecipes(_ recipes: [GeneratedRecipe]) {
+    if let data = try? JSONEncoder().encode(recipes) {
+        UserDefaults.standard.set(data, forKey: savedRecipesKey)
+    }
+}
+
 struct RecipesTabView: View {
-    @State private var savedRecipes: [GeneratedRecipe] = mockSavedRecipes
+    @Environment(PantryRepository.self) private var repo
+    @State private var savedRecipes: [GeneratedRecipe] = loadRecipes()
     @State private var navigateToCreate = false
 
     var body: some View {
@@ -143,7 +170,16 @@ struct RecipesTabView: View {
                                         recipe: recipe,
                                         onSave: nil,
                                         onDiscard: nil,
-                                        onDelete: { savedRecipes.removeAll { $0.id == recipe.id } }
+                                        onUpdate: { updated in
+                                            if let idx = savedRecipes.firstIndex(where: { $0.id == updated.id }) {
+                                                savedRecipes[idx] = updated
+                                                saveRecipes(savedRecipes)
+                                            }
+                                        },
+                                        onDelete: {
+                                            savedRecipes.removeAll { $0.id == recipe.id }
+                                            saveRecipes(savedRecipes)
+                                        }
                                     )) {
                                         recipeCard(recipe)
                                     }
@@ -152,6 +188,7 @@ struct RecipesTabView: View {
                                         Button(role: .destructive) {
                                             withAnimation {
                                                 savedRecipes.removeAll { $0.id == recipe.id }
+                                                saveRecipes(savedRecipes)
                                             }
                                         } label: {
                                             Label("Delete", systemImage: "trash")
@@ -186,7 +223,9 @@ struct RecipesTabView: View {
             .navigationDestination(isPresented: $navigateToCreate) {
                 CreateRecipeView { recipe in
                     savedRecipes.insert(recipe, at: 0)
+                    saveRecipes(savedRecipes)
                 }
+                .environment(repo)
             }
         }
     }
@@ -304,29 +343,48 @@ struct RecipesTabView: View {
 struct CreateRecipeView: View {
     let onSave: (GeneratedRecipe) -> Void
 
+    @Environment(PantryRepository.self) private var repo
     @State private var selectedIDs:     Set<UUID> = []
     @State private var searchText       = ""
     @State private var isGenerating     = false
     @State private var generatedRecipe: GeneratedRecipe?
     @State private var navigateToResult = false
+    @State private var generationError: String?
     @Environment(\.dismiss) private var dismiss
 
-    private var filteredGroups: [(IngredientGroup, [RecipeIngredientItem])] {
-        IngredientGroup.allCases.compactMap { group in
-            let items = allIngredients.filter {
-                $0.group == group &&
+    private var filteredGroups: [(ItemCategory, [PantryItem])] {
+        ItemCategory.allCases.compactMap { category in
+            let items = repo.items.filter {
+                $0.category == category &&
                 (searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText))
             }
-            return items.isEmpty ? nil : (group, items)
+            return items.isEmpty ? nil : (category, items)
         }
     }
 
+    private var selectedItems: [PantryItem] {
+        repo.items.filter { selectedIDs.contains($0.id) }
+    }
+
     private func generateRecipe() {
+        guard RecipeRateLimiter.canGenerate else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            generationError = "You've used all 5 recipes this week. Resets \(formatter.string(from: RecipeRateLimiter.resetsOn))."
+            return
+        }
         isGenerating = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            generatedRecipe = recipePool.randomElement()
+        generationError = nil
+        Task {
+            do {
+                let recipe = try await RecipeService.generate(from: selectedItems)
+                RecipeRateLimiter.recordGeneration()
+                generatedRecipe = recipe
+                navigateToResult = true
+            } catch {
+                generationError = error.localizedDescription
+            }
             isGenerating = false
-            navigateToResult = true
         }
     }
 
@@ -347,9 +405,13 @@ struct CreateRecipeView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 16)
 
-                        ForEach(filteredGroups, id: \.0) { group, items in
-                            ingredientGroupView(group, items: items)
-                                .padding(.top, 24)
+                        if repo.items.isEmpty {
+                            pantryEmptyState
+                        } else {
+                            ForEach(filteredGroups, id: \.0) { category, items in
+                                ingredientGroupView(category, items: items)
+                                    .padding(.top, 24)
+                            }
                         }
                     }
                     .padding(.bottom, 110)
@@ -374,10 +436,19 @@ struct CreateRecipeView: View {
         .safeAreaInset(edge: .bottom) {
             if !selectedIDs.isEmpty && !isGenerating {
                 generateButton
+                    .padding(.bottom, 80)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selectedIDs.isEmpty)
+        .alert("Couldn't Generate Recipe", isPresented: Binding(
+            get: { generationError != nil },
+            set: { if !$0 { generationError = nil } }
+        )) {
+            Button("OK") { generationError = nil }
+        } message: {
+            Text(generationError ?? "")
+        }
         .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $navigateToResult) {
             if let recipe = generatedRecipe {
@@ -468,12 +539,32 @@ struct CreateRecipeView: View {
         )
     }
 
+    // MARK: - Pantry Empty State
+
+    private var pantryEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "refrigerator")
+                .font(.system(size: 40))
+                .foregroundStyle(Color.ftDeepForest.opacity(0.15))
+            Text("Your pantry is empty")
+                .font(.ftBody(16, weight: .semibold))
+                .foregroundStyle(Color.ftDeepForest.opacity(0.4))
+            Text("Add items to your pantry first,\nthen come back to generate a recipe.")
+                .font(.ftBody(13))
+                .foregroundStyle(Color.ftDeepForest.opacity(0.3))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+        .padding(.horizontal, 40)
+    }
+
     // MARK: - Ingredient Group
 
-    private func ingredientGroupView(_ group: IngredientGroup, items: [RecipeIngredientItem]) -> some View {
+    private func ingredientGroupView(_ category: ItemCategory, items: [PantryItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(group.rawValue)
+                Text(category.displayName.uppercased())
                     .font(.ftBody(11, weight: .bold))
                     .foregroundStyle(Color.ftDeepForest.opacity(0.5))
                     .kerning(1.0)
@@ -507,7 +598,7 @@ struct CreateRecipeView: View {
         }
     }
 
-    private func ingredientRow(_ item: RecipeIngredientItem) -> some View {
+    private func ingredientRow(_ item: PantryItem) -> some View {
         let isSelected = selectedIDs.contains(item.id)
         return Button(action: {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -520,11 +611,19 @@ struct CreateRecipeView: View {
                     Text(item.name)
                         .font(.ftBody(15, weight: .semibold))
                         .foregroundStyle(Color.ftDeepForest)
-                    Text(item.description)
+                    Text(item.quantityDisplay + (item.brand.map { " · \($0)" } ?? ""))
                         .font(.ftBody(13))
                         .foregroundStyle(Color.ftDeepForest50)
                 }
                 Spacer()
+                if item.freshnessGrade == .urgent || item.freshnessGrade == .expired {
+                    Text(item.freshnessGrade.badgeLabel)
+                        .font(.ftBody(9, weight: .bold))
+                        .foregroundStyle(item.freshnessGrade.badgeLabelColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(item.freshnessGrade.badgeBgColor))
+                }
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
                     .foregroundStyle(isSelected ? Color.ftOlive : Color.ftDeepForest.opacity(0.22))
@@ -539,48 +638,73 @@ struct CreateRecipeView: View {
     // MARK: - Generate Button
 
     private var generateButton: some View {
-        Button(action: generateRecipe) {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Generate AI Recipe")
-                    .font(.ftBody(15, weight: .semibold))
-                Spacer()
-                Text("\(selectedIDs.count) Selected")
-                    .font(.ftBody(12, weight: .bold))
-                    .foregroundStyle(Color.ftDeepForest)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.ftWarmBeige))
+        VStack(spacing: 0) {
+            // Usage indicator
+            HStack(spacing: 4) {
+                ForEach(0..<RecipeRateLimiter.maxPerWeek, id: \.self) { i in
+                    Capsule()
+                        .fill(i < RecipeRateLimiter.remaining ? Color.ftOlive : Color.ftDeepForest.opacity(0.15))
+                        .frame(height: 3)
+                }
             }
-            .foregroundStyle(.white)
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(Color.ftDeepForest)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            Text("\(RecipeRateLimiter.remaining) of \(RecipeRateLimiter.maxPerWeek) generations left this week")
+                .font(.ftBody(11))
+                .foregroundStyle(Color.ftDeepForest.opacity(0.45))
+                .padding(.bottom, 10)
+
+            Button(action: generateRecipe) {
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Generate AI Recipe")
+                        .font(.ftBody(15, weight: .semibold))
+                    Spacer()
+                    Text("\(selectedIDs.count) ingredient\(selectedIDs.count == 1 ? "" : "s")")
+                        .font(.ftBody(12, weight: .bold))
+                        .foregroundStyle(Color.ftDeepForest)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.ftWarmBeige))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(RecipeRateLimiter.canGenerate ? Color.ftDeepForest : Color.ftDeepForest.opacity(0.35))
+            }
         }
+        .background(Color.ftWarmBeige)
     }
 }
 
 // MARK: - RecipeResultView
 
 struct RecipeResultView: View {
-    let recipe: GeneratedRecipe
     /// Called when the user saves. Nil when viewing a pre-saved recipe.
     let onSave: ((GeneratedRecipe) -> Void)?
     /// Called when the user discards. Nil when viewing a pre-saved recipe.
     let onDiscard: (() -> Void)?
+    /// Called when the user updates (edits) a saved recipe. Nil when generating a new recipe.
+    let onUpdate: ((GeneratedRecipe) -> Void)?
     /// Called when the user deletes a saved recipe. Nil when generating a new recipe.
     let onDelete: (() -> Void)?
 
+    @State private var currentRecipe: GeneratedRecipe
     @State private var isSaved: Bool
     @State private var showDeleteConfirm = false
+    @State private var navigateToEdit = false
     @Environment(\.dismiss) private var dismiss
 
-    init(recipe: GeneratedRecipe, onSave: ((GeneratedRecipe) -> Void)?, onDiscard: (() -> Void)?, onDelete: (() -> Void)? = nil) {
-        self.recipe = recipe
+    init(recipe: GeneratedRecipe, onSave: ((GeneratedRecipe) -> Void)?, onDiscard: (() -> Void)?,
+         onUpdate: ((GeneratedRecipe) -> Void)? = nil, onDelete: (() -> Void)? = nil) {
         self.onSave = onSave
         self.onDiscard = onDiscard
+        self.onUpdate = onUpdate
         self.onDelete = onDelete
+        _currentRecipe = State(initialValue: recipe)
         // Pre-saved recipes start in saved state
         _isSaved = State(initialValue: onSave == nil)
     }
@@ -594,7 +718,7 @@ struct RecipeResultView: View {
 
                         VStack(alignment: .leading, spacing: 20) {
                             aiBadge
-                            Text(recipe.title)
+                            Text(currentRecipe.title)
                                 .font(.system(size: 24, weight: .bold, design: .serif))
                                 .foregroundStyle(Color.ftDeepForest)
                             metaRow
@@ -632,35 +756,31 @@ struct RecipeResultView: View {
                         .font(.ftBody(17, weight: .semibold))
                         .foregroundStyle(Color.ftDeepForest)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {}) {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color.ftDeepForest)
+                if onUpdate != nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: { navigateToEdit = true }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.ftDeepForest)
+                        }
                     }
+                }
+            }
+            .navigationDestination(isPresented: $navigateToEdit) {
+                EditRecipeView(recipe: currentRecipe) { updated in
+                    currentRecipe = updated
+                    onUpdate?(updated)
                 }
             }
             .toolbarBackground(Color.ftWarmBeige, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
     }
 
     // MARK: Hero
 
     private var heroImage: some View {
-        GeometryReader { geo in
-            AsyncImage(url: URL(string: recipe.heroImageURL)) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                        .frame(width: geo.size.width, height: 220)
-                        .clipped()
-                default:
-                    Color.ftSoftClay.opacity(0.4)
-                        .frame(width: geo.size.width, height: 220)
-                }
-            }
-        }
-        .frame(height: 220)
+        RecipeHeroImage(urlString: currentRecipe.heroImageURL, height: 220)
     }
 
     // MARK: AI Badge
@@ -687,8 +807,8 @@ struct RecipeResultView: View {
 
     private var metaRow: some View {
         HStack(spacing: 28) {
-            metaCell(icon: "clock", label: "PREP TIME",  value: recipe.prepTime)
-            metaCell(icon: "chart.bar.fill", label: "DIFFICULTY", value: recipe.difficulty)
+            metaCell(icon: "clock", label: "PREP TIME",  value: currentRecipe.prepTime)
+            metaCell(icon: "chart.bar.fill", label: "DIFFICULTY", value: currentRecipe.difficulty)
         }
     }
 
@@ -726,7 +846,7 @@ struct RecipeResultView: View {
 
     private var ingredientsList: some View {
         VStack(spacing: 8) {
-            ForEach(recipe.ingredients, id: \.self) { ingredient in
+            ForEach(currentRecipe.ingredients, id: \.self) { ingredient in
                 HStack(spacing: 12) {
                     Circle()
                         .fill(Color.ftDeepForest)
@@ -754,7 +874,7 @@ struct RecipeResultView: View {
 
     private var instructionsList: some View {
         VStack(spacing: 14) {
-            ForEach(Array(recipe.steps.enumerated()), id: \.offset) { index, step in
+            ForEach(Array(currentRecipe.steps.enumerated()), id: \.offset) { index, step in
                 HStack(alignment: .top, spacing: 12) {
                     Text("\(index + 1)")
                         .font(.system(size: 12, weight: .bold))
@@ -780,7 +900,7 @@ struct RecipeResultView: View {
                 HStack(spacing: 12) {
                     Button(action: {
                         withAnimation { isSaved = true }
-                        onSave(recipe)
+                        onSave(currentRecipe)
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")

@@ -12,7 +12,7 @@ struct PantryView: View {
 
     @State private var searchText       = ""
     @State private var selectedCategory: ItemCategory? = nil   // nil = All
-    @State private var showScanner      = false
+    @State private var showManualAdd    = false
 
     private var filteredItems: [PantryItem] {
         var items = repo.items
@@ -65,9 +65,9 @@ struct PantryView: View {
             }
             .background(Color.ftWarmBeige.ignoresSafeArea())
 
-            // Scan FAB
-            Button(action: { showScanner = true }) {
-                Image(systemName: "barcode.viewfinder")
+            // Manual Add FAB
+            Button(action: { showManualAdd = true }) {
+                Image(systemName: "square.and.pencil")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 54, height: 54)
@@ -78,10 +78,8 @@ struct PantryView: View {
             .padding(.bottom, 98)
         }
         .task { await repo.fetchItems() }
-        .sheet(isPresented: $showScanner) {
-            ScanProductView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
+        .sheet(isPresented: $showManualAdd) {
+            ManualAddItemView()
                 .environment(repo)
         }
     }
