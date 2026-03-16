@@ -22,6 +22,7 @@ struct gourdApp: App {
                         await pantryRepo.fetchItems()
                     } else {
                         pantryRepo.clearCache()
+                        UserDefaults.standard.removeObject(forKey: "saved_recipes")
                     }
                 }
         }

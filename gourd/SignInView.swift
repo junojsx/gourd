@@ -130,6 +130,10 @@ struct SignInView: View {
         Button(action: {
             errorMessage = ""
             showResetConfirm = false
+            guard isValidEmailFormat(email) else {
+                errorMessage = "Invalid email, email must be in this format: firstlastname@email.com"
+                return
+            }
             Task {
                 do {
                     try await auth.signIn(email: email, password: password)
@@ -180,6 +184,13 @@ struct SignInView: View {
                 .foregroundStyle(Color.ftDeepForest.opacity(0.6))
                 .underline()
         }
+    }
+
+    // MARK: - Error Helpers
+
+    private func isValidEmailFormat(_ email: String) -> Bool {
+        let regex = #"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: regex, options: .regularExpression) != nil
     }
 
     // MARK: - Sign Up Prompt

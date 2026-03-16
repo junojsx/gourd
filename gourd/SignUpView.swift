@@ -245,7 +245,7 @@ struct FTTextField: View {
                 .font(.ftBody(13, weight: .medium))
                 .foregroundStyle(Color.ftDeepForest70)
 
-            TextField(placeholder, text: $text)
+            TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder))
                 .font(.ftBody(16))
                 .foregroundStyle(Color.ftDeepForest)
                 .keyboardType(keyboardType)
@@ -301,9 +301,9 @@ struct FTSecureField: View {
             HStack {
                 Group {
                     if isVisible {
-                        TextField(placeholder, text: $text)
+                        TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder))
                     } else {
-                        SecureField(placeholder, text: $text)
+                        SecureField("", text: $text, prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder))
                     }
                 }
                 .font(.ftBody(16))

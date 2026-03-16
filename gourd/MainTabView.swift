@@ -45,21 +45,25 @@ struct MainTabView: View {
 
     private var tabBar: some View {
         ZStack(alignment: .top) {
-            // Background
-            Color.white
-                .shadow(color: Color.ftDeepForest.opacity(0.1), radius: 16, x: 0, y: -4)
+            Rectangle()
+                .fill(Color.ftWarmBeige)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(Color.ftSoftClay.opacity(0.4))
+                        .frame(height: 1)
+                }
                 .frame(height: 88)
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: 0) {
-                TabBarButton(icon: "house.fill",       label: "HOME",   tab: .home,   selectedTab: $selectedTab)
-                TabBarButton(icon: "refrigerator",     label: "PANTRY", tab: .pantry, selectedTab: $selectedTab)
+                TabBarButton(icon: "house.fill",     label: "HOME",    tab: .home,    selectedTab: $selectedTab)
+                TabBarButton(icon: "refrigerator",   label: "PANTRY",  tab: .pantry,  selectedTab: $selectedTab)
 
                 // FAB center space
                 Spacer().frame(width: 72)
 
-                TabBarButton(icon: "book.fill",      label: "RECIPES",  tab: .recipes,  selectedTab: $selectedTab)
-                TabBarButton(icon: "gearshape.fill",   label: "SETUP",  tab: .setup,  selectedTab: $selectedTab)
+                TabBarButton(icon: "book.fill",      label: "RECIPES", tab: .recipes, selectedTab: $selectedTab)
+                TabBarButton(icon: "gearshape.fill", label: "SETUP",   tab: .setup,   selectedTab: $selectedTab)
             }
             .padding(.horizontal, 8)
             .padding(.top, 10)
@@ -71,7 +75,7 @@ struct MainTabView: View {
                     .foregroundStyle(.white)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(Color.ftDeepForest))
-                    .ftShadowMd()
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             }
             .offset(y: -22)
         }

@@ -69,6 +69,9 @@ struct EditRecipeView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @Environment(\.dismiss) private var dismiss
 
+    @FocusState private var isTitleFocused: Bool
+    @FocusState private var isPrepTimeFocused: Bool
+
     init(recipe: GeneratedRecipe, onSave: @escaping (GeneratedRecipe) -> Void) {
         self.recipe = recipe
         self.onSave = onSave
@@ -163,16 +166,18 @@ struct EditRecipeView: View {
     private var infoSection: some View {
         VStack(spacing: 12) {
             fieldBlock(label: "TITLE") {
-                TextField("Recipe title", text: $title)
+                TextField("", text: $title, prompt: Text("Recipe title").foregroundStyle(Color.ftPlaceholder))
                     .font(.ftBody(15))
                     .foregroundStyle(Color.ftDeepForest)
+                    .focused($isTitleFocused)
             }
 
             HStack(spacing: 12) {
                 fieldBlock(label: "PREP TIME") {
-                    TextField("e.g. 20 mins", text: $prepTime)
+                    TextField("", text: $prepTime, prompt: Text("e.g. 20 mins").foregroundStyle(Color.ftPlaceholder))
                         .font(.ftBody(15))
                         .foregroundStyle(Color.ftDeepForest)
+                        .focused($isPrepTimeFocused)
                 }
 
                 fieldBlock(label: "DIFFICULTY") {
@@ -216,7 +221,7 @@ struct EditRecipeView: View {
                                 .padding(.top, 14)
                         }
 
-                        TextField(placeholder, text: items[i], axis: .vertical)
+                        TextField("", text: items[i], prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder), axis: .vertical)
                             .font(.ftBody(14))
                             .foregroundStyle(Color.ftDeepForest)
                             .padding(.horizontal, 12)

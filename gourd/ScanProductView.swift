@@ -606,6 +606,9 @@ struct ManualAddItemView: View {
     @State private var addedSuccess    = false
     @State private var isSaving        = false
 
+    @FocusState private var focusedField: ManualField?
+    private enum ManualField { case name, brand, unit }
+
     private var canAdd: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
@@ -614,19 +617,21 @@ struct ManualAddItemView: View {
                 VStack(spacing: 16) {
                     formField(label: "Item Name", required: true) {
 
-                        TextField("e.g. Almond Milk", text: $name)
+                        TextField("", text: $name, prompt: Text("e.g. Almond Milk").foregroundStyle(Color.ftPlaceholder))
                             .font(.ftBody(15))
                             .foregroundStyle(Color.ftDeepForest)
                             .autocorrectionDisabled()
                             .submitLabel(.next)
+                            .focused($focusedField, equals: .name)
                     }
 
                     formField(label: "Brand", required: false) {
-                        TextField("e.g. Silk", text: $brand)
+                        TextField("", text: $brand, prompt: Text("e.g. Silk").foregroundStyle(Color.ftPlaceholder))
                             .font(.ftBody(15))
                             .foregroundStyle(Color.ftDeepForest)
                             .autocorrectionDisabled()
                             .submitLabel(.done)
+                            .focused($focusedField, equals: .brand)
                     }
 
                     // Quantity + unit on one row
@@ -669,11 +674,12 @@ struct ManualAddItemView: View {
                                     )
                             )
                             // Unit field
-                            TextField("unit", text: $unit)
+                            TextField("", text: $unit, prompt: Text("unit").foregroundStyle(Color.ftPlaceholder))
                                 .font(.ftBody(15))
                                 .foregroundStyle(Color.ftDeepForest)
                                 .autocorrectionDisabled()
                                 .frame(maxWidth: .infinity)
+                                .focused($focusedField, equals: .unit)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 12)
                                 .background(

@@ -302,14 +302,14 @@ struct UpdatePasswordView: View {
 
                 // Fields
                 VStack(spacing: 16) {
-                    secureField(
+                    SecureFormField(
                         label: "Current Password",
                         text: $currentPassword,
                         isVisible: $showCurrent,
                         placeholder: "Enter current password"
                     )
 
-                    secureField(
+                    SecureFormField(
                         label: "New Password",
                         text: $newPassword,
                         isVisible: $showNew,
@@ -317,7 +317,7 @@ struct UpdatePasswordView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 6) {
-                        secureField(
+                        SecureFormField(
                             label: "Confirm New Password",
                             text: $confirmPassword,
                             isVisible: $showConfirm,
@@ -393,7 +393,19 @@ struct UpdatePasswordView: View {
         .toolbarBackground(.visible, for: .navigationBar)
     }
 
-    private func secureField(label: String, text: Binding<String>, isVisible: Binding<Bool>, placeholder: String) -> some View {
+}
+
+// MARK: - SecureFormField
+
+private struct SecureFormField: View {
+    let label: String
+    @Binding var text: String
+    @Binding var isVisible: Bool
+    let placeholder: String
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.ftBody(13, weight: .medium))
@@ -401,19 +413,20 @@ struct UpdatePasswordView: View {
 
             HStack {
                 Group {
-                    if isVisible.wrappedValue {
-                        TextField(placeholder, text: text)
+                    if isVisible {
+                        TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder))
                     } else {
-                        SecureField(placeholder, text: text)
+                        SecureField("", text: $text, prompt: Text(placeholder).foregroundStyle(Color.ftPlaceholder))
                     }
                 }
                 .font(.ftBody(15))
                 .foregroundStyle(Color.ftDeepForest)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .focused($isFocused)
 
-                Button(action: { isVisible.wrappedValue.toggle() }) {
-                    Image(systemName: isVisible.wrappedValue ? "eye.slash" : "eye")
+                Button(action: { isVisible.toggle() }) {
+                    Image(systemName: isVisible ? "eye.slash" : "eye")
                         .font(.system(size: 15))
                         .foregroundStyle(Color.ftDeepForest.opacity(0.35))
                 }
@@ -654,7 +667,9 @@ struct DeleteAccountView: View {
     @Environment(AuthManager.self) private var auth
     @State private var confirmText  = ""
     @State private var showFinal    = false
+    @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var isConfirmFocused: Bool
 
     private let warningItems = [
         ("tray.full.fill",         "All pantry items will be permanently deleted"),
@@ -748,11 +763,12 @@ struct DeleteAccountView: View {
                         .font(.ftBody(14))
                         .foregroundStyle(Color.ftDeepForest.opacity(0.7))
 
-                    TextField("Type \"delete\" here", text: $confirmText)
+                    TextField("", text: $confirmText, prompt: Text("Type \"delete\" here").foregroundStyle(Color.ftPlaceholder))
                         .font(.ftBody(15))
                         .foregroundStyle(Color.ftDeepForest)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                        .focused($isConfirmFocused)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 13)
                         .background(
@@ -774,25 +790,41 @@ struct DeleteAccountView: View {
         }
         .background(Color.ftWarmBeige)
         .safeAreaInset(edge: .bottom) {
-            Button(action: { showFinal = true }) {
-                Text("Delete My Account")
-                    .font(.ftBody(16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(confirmIsValid ? Color.ftCrimson : Color.ftCrimson.opacity(0.3))
-                    )
+            VStack(spacing: 8) {
+                if !errorMessage.isEmpty {
+                    Text(errorMessage)
+                        .font(.ftBody(13))
+                        .foregroundStyle(Color.ftCrimson)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                }
+
+                Button(action: { showFinal = true }) {
+                    Text("Delete My Account")
+                        .font(.ftBody(16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(confirmIsValid ? Color.ftCrimson : Color.ftCrimson.opacity(0.3))
+                        )
+                }
+                .disabled(!confirmIsValid || auth.isLoading)
             }
-            .disabled(!confirmIsValid)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color.ftWarmBeige)
         }
         .confirmationDialog("Are you absolutely sure?", isPresented: $showFinal, titleVisibility: .visible) {
             Button("Yes, delete my account", role: .destructive) {
-                Task { try? await auth.deleteAccount() }
+                Task {
+                    do {
+                        try await auth.deleteAccount()
+                    } catch {
+                        errorMessage = "Failed to delete account. Please try again."
+                    }
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

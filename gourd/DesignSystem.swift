@@ -34,6 +34,9 @@ extension Color {
     static let ftDeepForest70 = Color(hex: "2D3A2D").opacity(0.7)
     static let ftDeepForest50 = Color(hex: "2D3A2D").opacity(0.5)
     static let ftDeepForest40 = Color(hex: "2D3A2D").opacity(0.4)
+
+    /// Placeholder text for inputs — contrast meets WCAG AA (≥4.5:1) on ftWarmBeige and light inputs.
+    static let ftPlaceholder = Color(hex: "5A655A")
 }
 
 extension Color {
@@ -72,3 +75,4 @@ extension View {
         shadow(color: Color.ftDeepForest.opacity(0.12), radius: 8, x: 0, y: 4)
     }
 }
+

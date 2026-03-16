@@ -309,7 +309,7 @@ struct RecipesTabView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.white.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -347,6 +347,7 @@ struct CreateRecipeView: View {
     @State private var selectedIDs:     Set<UUID> = []
     @State private var searchText       = ""
     @State private var isGenerating     = false
+    @FocusState private var isSearchFocused: Bool
     @State private var generatedRecipe: GeneratedRecipe?
     @State private var navigateToResult = false
     @State private var generationError: String?
@@ -510,11 +511,12 @@ struct CreateRecipeView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.ftDeepForest.opacity(0.35))
-            TextField("Search ingredients...", text: $searchText)
+            TextField("", text: $searchText, prompt: Text("Search ingredients...").foregroundStyle(Color.ftPlaceholder))
                 .font(.ftBody(15))
                 .foregroundStyle(Color.ftDeepForest)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .focused($isSearchFocused)
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")

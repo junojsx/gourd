@@ -13,6 +13,7 @@ struct PantryView: View {
     @State private var searchText       = ""
     @State private var selectedCategory: ItemCategory? = nil   // nil = All
     @State private var showManualAdd    = false
+    @FocusState private var isSearchFocused: Bool
 
     private var filteredItems: [PantryItem] {
         var items = repo.items
@@ -72,7 +73,7 @@ struct PantryView: View {
                     .foregroundStyle(.white)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(Color.ftDeepForest))
-                    .ftShadowMd()
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             }
             .padding(.trailing, 20)
             .padding(.bottom, 98)
@@ -120,11 +121,12 @@ struct PantryView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15))
                 .foregroundStyle(Color.ftDeepForest.opacity(0.35))
-            TextField("Search items in your pantry...", text: $searchText)
+            TextField("", text: $searchText, prompt: Text("Search items in your pantry...").foregroundStyle(Color.ftPlaceholder))
                 .font(.ftBody(15))
                 .foregroundStyle(Color.ftDeepForest)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .focused($isSearchFocused)
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -272,7 +274,7 @@ struct PantryView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.white.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
