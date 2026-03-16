@@ -1,0 +1,4 @@
+# ─── Secrets ──────────────────────────────────────────────────────────────────
+# NEVER commit these files — they contain real API keys
+Secrets.swift
+Secrets.swift.example
