@@ -23,9 +23,17 @@ enum RecipeServiceError: LocalizedError {
     }
 }
 
+struct RecipeGenerationResult {
+    let recipe: GeneratedRecipe
+    let promptTokens: Int
+    let completionTokens: Int
+}
+
 struct RecipeService {
 
-    static func generate(from items: [PantryItem]) async throws -> GeneratedRecipe {
+    static let modelName = "claude-haiku-4-5-20251001"
+
+    static func generate(from items: [PantryItem]) async throws -> RecipeGenerationResult {
         guard !items.isEmpty else { throw RecipeServiceError.noItems }
 
         let ingredientLines = items.map { item -> String in
@@ -75,7 +83,7 @@ struct RecipeService {
         }
 
         let body = AnthropicRequest(
-            model: "claude-haiku-4-5-20251001",
+            model: modelName,
             maxTokens: 1024,
             messages: [.init(role: "user", content: prompt)]
         )
@@ -93,10 +101,19 @@ struct RecipeService {
             throw RecipeServiceError.badResponse(http.statusCode)
         }
 
-        // Decode Anthropic response envelope
+        // Decode Anthropic response envelope (includes token usage)
         struct Envelope: Decodable {
             struct Block: Decodable { let text: String }
+            struct Usage: Decodable {
+                let inputTokens: Int
+                let outputTokens: Int
+                enum CodingKeys: String, CodingKey {
+                    case inputTokens  = "input_tokens"
+                    case outputTokens = "output_tokens"
+                }
+            }
             let content: [Block]
+            let usage: Usage
         }
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
         guard let text = envelope.content.first?.text, !text.isEmpty else {
@@ -120,13 +137,34 @@ struct RecipeService {
         }
 
         let payload = try JSONDecoder().decode(RecipePayload.self, from: jsonData)
-        return GeneratedRecipe(
-            title:        payload.title,
-            prepTime:     payload.prepTime,
-            difficulty:   payload.difficulty,
-            heroImageURL: "",
-            ingredients:  payload.ingredients,
-            steps:        payload.steps
+
+        // Determine whether any selected items were expiring (within 3 days)
+        let usesExpiring = items.contains { ($0.daysUntilExpiry ?? Int.max) <= 3 }
+
+        // Build a stable ingredient hash for cache lookup
+        let ingredientHash = items
+            .map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }
+            .sorted()
+            .joined(separator: ",")
+
+        let recipe = GeneratedRecipe(
+            title:           payload.title,
+            prepTime:        payload.prepTime,
+            difficulty:      payload.difficulty,
+            heroImageURL:    "",
+            ingredients:     payload.ingredients,
+            steps:           payload.steps,
+            usesExpiring:    usesExpiring,
+            ingredientHash:  ingredientHash,
+            promptTokens:    envelope.usage.inputTokens,
+            completionTokens: envelope.usage.outputTokens,
+            modelUsed:       modelName,
+            generatedAt:     Date()
+        )
+        return RecipeGenerationResult(
+            recipe:           recipe,
+            promptTokens:     envelope.usage.inputTokens,
+            completionTokens: envelope.usage.outputTokens
         )
     }
 }

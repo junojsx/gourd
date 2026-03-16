@@ -4,11 +4,16 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 // MARK: - SetupView
 
 struct SetupView: View {
     @Environment(AuthManager.self) private var auth
+
+    @State private var prefs = NotificationPrefs.shared
+    @State private var systemAuthStatus: UNAuthorizationStatus = .notDetermined
+    @State private var showTimePicker = false
 
     var body: some View {
         NavigationStack {
@@ -22,6 +27,7 @@ struct SetupView: View {
                         VStack(spacing: 24) {
                             profileCard
                             accountSection
+                            notificationsSection
                             signOutSection
                             dangerSection
                         }
@@ -32,6 +38,16 @@ struct SetupView: View {
                 }
             }
         }
+        .task { await refreshAuthStatus() }
+        .sheet(isPresented: $showTimePicker) {
+            AlertTimePicker(hour: $prefs.alertHour, minute: $prefs.alertMinute)
+                .presentationDetents([.height(320)])
+        }
+    }
+
+    private func refreshAuthStatus() async {
+        systemAuthStatus = await UNUserNotificationCenter.current()
+            .notificationSettings().authorizationStatus
     }
 
     // MARK: - Nav Bar
@@ -132,6 +148,166 @@ struct SetupView: View {
             }
             .background(cardBackground)
         }
+    }
+
+    // MARK: - Notifications Section
+
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("EXPIRY NOTIFICATIONS")
+
+            VStack(spacing: 0) {
+
+                // Master toggle
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.ftOlive.opacity(0.12))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "bell.badge.fill")
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color.ftOlive)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cook Now Alerts")
+                            .font(.ftBody(15, weight: .semibold))
+                            .foregroundStyle(Color.ftDeepForest)
+                        Text(systemAuthStatus == .denied
+                             ? "Blocked in Settings — tap to enable"
+                             : "Notify when items are about to expire")
+                            .font(.ftBody(13))
+                            .foregroundStyle(systemAuthStatus == .denied
+                                             ? Color.ftCrimson.opacity(0.7)
+                                             : Color.ftDeepForest50)
+                    }
+                    Spacer()
+                    if systemAuthStatus == .denied {
+                        Button("Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .font(.ftBody(13, weight: .semibold))
+                        .foregroundStyle(Color.ftOlive)
+                    } else {
+                        Toggle("", isOn: $prefs.enabled)
+                            .labelsHidden()
+                            .tint(Color.ftOlive)
+                    }
+                }
+                .padding(14)
+
+                if prefs.enabled && systemAuthStatus != .denied {
+
+                    rowDivider
+
+                    // Alert time row
+                    Button(action: { showTimePicker = true }) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.ftDeepForest.opacity(0.07))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color.ftDeepForest.opacity(0.6))
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Alert Time")
+                                    .font(.ftBody(15, weight: .semibold))
+                                    .foregroundStyle(Color.ftDeepForest)
+                                Text("Daily notification time")
+                                    .font(.ftBody(13))
+                                    .foregroundStyle(Color.ftDeepForest50)
+                            }
+                            Spacer()
+                            Text(prefs.alertTimeDisplay)
+                                .font(.ftBody(14, weight: .semibold))
+                                .foregroundStyle(Color.ftOlive)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.ftDeepForest.opacity(0.25))
+                        }
+                        .padding(14)
+                    }
+                    .buttonStyle(.plain)
+
+                    rowDivider
+
+                    // Window toggles header
+                    HStack {
+                        Text("NOTIFY ME WHEN ITEMS EXPIRE IN")
+                            .font(.ftBody(10, weight: .semibold))
+                            .foregroundStyle(Color.ftDeepForest.opacity(0.4))
+                            .kerning(0.6)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
+
+                    windowToggleRow(
+                        title: "Same Day",
+                        subtitle: "Expires today",
+                        icon: "flame.fill",
+                        iconColor: Color.ftCrimson,
+                        isOn: $prefs.cookNowSameDay
+                    )
+
+                    rowDivider
+
+                    windowToggleRow(
+                        title: "1 Day Before",
+                        subtitle: "Expires tomorrow",
+                        icon: "exclamationmark.circle.fill",
+                        iconColor: Color.ftBronze,
+                        isOn: $prefs.cookNowOneDay
+                    )
+
+                    rowDivider
+
+                    windowToggleRow(
+                        title: "3 Days Before",
+                        subtitle: "Expires in 3 days",
+                        icon: "calendar.badge.clock",
+                        iconColor: Color.ftOlive,
+                        isOn: $prefs.cookNowThreeDay
+                    )
+                }
+            }
+            .background(cardBackground)
+        }
+    }
+
+    private func windowToggleRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        iconColor: Color,
+        isOn: Binding<Bool>
+    ) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(iconColor.opacity(0.1))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundStyle(iconColor)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.ftBody(15, weight: .semibold))
+                    .foregroundStyle(Color.ftDeepForest)
+                Text(subtitle)
+                    .font(.ftBody(13))
+                    .foregroundStyle(Color.ftDeepForest50)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Color.ftOlive)
+        }
+        .padding(14)
     }
 
     // MARK: - Sign Out Section
@@ -847,6 +1023,69 @@ struct DeleteAccountView: View {
         }
         .toolbarBackground(Color.ftWarmBeige, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+    }
+}
+
+// MARK: - AlertTimePicker
+
+struct AlertTimePicker: View {
+    @Binding var hour: Int
+    @Binding var minute: Int
+    @Environment(\.dismiss) private var dismiss
+
+    // Generate hour options 6 AM – 10 PM
+    private let hours = Array(6...22)
+    private let minutes = [0, 15, 30, 45]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Handle
+            Capsule()
+                .fill(Color.ftSoftClay)
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+
+            Text("Alert Time")
+                .font(.ftBody(17, weight: .semibold))
+                .foregroundStyle(Color.ftDeepForest)
+                .padding(.bottom, 20)
+
+            HStack(spacing: 0) {
+                // Hour picker
+                Picker("Hour", selection: $hour) {
+                    ForEach(hours, id: \.self) { h in
+                        let label = h > 12 ? "\(h - 12) PM" : (h == 12 ? "12 PM" : "\(h) AM")
+                        Text(label).tag(h)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+
+                // Minute picker
+                Picker("Minute", selection: $minute) {
+                    ForEach(minutes, id: \.self) { m in
+                        Text(String(format: ":%02d", m)).tag(m)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(width: 90)
+            }
+            .padding(.horizontal, 16)
+
+            Button(action: { dismiss() }) {
+                Text("Done")
+                    .font(.ftBody(16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.ftDeepForest))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
+        }
+        .background(Color.ftWarmBeige.ignoresSafeArea())
     }
 }
 

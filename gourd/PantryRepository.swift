@@ -20,6 +20,9 @@ final class PantryRepository {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
+    /// Latest items snapshot, readable without an instance (used by NotificationPrefs).
+    static private(set) var lastKnownItems: [PantryItem] = []
+
     // MARK: - Cache
 
     private static let cacheKey = "pantry_items_cache"
@@ -46,6 +49,7 @@ final class PantryRepository {
         if let data = try? Self.cacheEncoder.encode(items) {
             UserDefaults.standard.set(data, forKey: Self.cacheKey)
         }
+        Self.lastKnownItems = items
     }
 
     func clearCache() {
@@ -67,6 +71,7 @@ final class PantryRepository {
                 .execute()
                 .value
             persistCache()
+            await ExpiryNotificationScheduler.shared.reschedule(items: items)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -86,6 +91,7 @@ final class PantryRepository {
             .value
         insertSorted(item)
         persistCache()
+        await ExpiryNotificationScheduler.shared.reschedule(items: items)
         return item
     }
 
@@ -104,6 +110,7 @@ final class PantryRepository {
             items[idx] = updated
         }
         persistCache()
+        await ExpiryNotificationScheduler.shared.reschedule(items: items)
     }
 
     // MARK: - Delete
@@ -116,6 +123,7 @@ final class PantryRepository {
             .execute()
         items.removeAll { $0.id == id }
         persistCache()
+        await ExpiryNotificationScheduler.shared.reschedule(items: items)
     }
 
     // MARK: - Mark Consumed
@@ -137,6 +145,7 @@ final class PantryRepository {
             .execute()
         items.removeAll { $0.id == id }
         persistCache()
+        await ExpiryNotificationScheduler.shared.reschedule(items: items)
     }
 
     // MARK: - Build Insert

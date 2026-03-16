@@ -29,8 +29,29 @@ struct GeneratedRecipe: Identifiable, Codable {
     let ingredients: [String]
     let steps: [String]
 
-    init(id: UUID = UUID(), title: String, prepTime: String, difficulty: String,
-         heroImageURL: String, ingredients: [String], steps: [String]) {
+    // Metadata for Supabase persistence
+    var usesExpiring: Bool
+    var ingredientHash: String
+    var promptTokens: Int
+    var completionTokens: Int
+    var modelUsed: String
+    var generatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        prepTime: String,
+        difficulty: String,
+        heroImageURL: String,
+        ingredients: [String],
+        steps: [String],
+        usesExpiring: Bool = false,
+        ingredientHash: String = "",
+        promptTokens: Int = 0,
+        completionTokens: Int = 0,
+        modelUsed: String = "",
+        generatedAt: Date = Date()
+    ) {
         self.id = id
         self.title = title
         self.prepTime = prepTime
@@ -38,6 +59,12 @@ struct GeneratedRecipe: Identifiable, Codable {
         self.heroImageURL = heroImageURL
         self.ingredients = ingredients
         self.steps = steps
+        self.usesExpiring = usesExpiring
+        self.ingredientHash = ingredientHash
+        self.promptTokens = promptTokens
+        self.completionTokens = completionTokens
+        self.modelUsed = modelUsed
+        self.generatedAt = generatedAt
     }
 }
 
@@ -132,25 +159,17 @@ private let mockSavedRecipes: [GeneratedRecipe] = [
 
 // MARK: - RecipesTabView
 
-private let savedRecipesKey = "saved_recipes"
-
-private func loadRecipes() -> [GeneratedRecipe] {
-    guard let data = UserDefaults.standard.data(forKey: savedRecipesKey),
-          let recipes = try? JSONDecoder().decode([GeneratedRecipe].self, from: data)
-    else { return [] }
-    return recipes
-}
-
-private func saveRecipes(_ recipes: [GeneratedRecipe]) {
-    if let data = try? JSONEncoder().encode(recipes) {
-        UserDefaults.standard.set(data, forKey: savedRecipesKey)
-    }
+extension Notification.Name {
+    static let savedRecipesDidChange = Notification.Name("savedRecipesDidChange")
 }
 
 struct RecipesTabView: View {
     @Environment(PantryRepository.self) private var repo
-    @State private var savedRecipes: [GeneratedRecipe] = loadRecipes()
+    @Environment(RecipeRepository.self) private var recipeRepo
     @State private var navigateToCreate = false
+    @State private var saveError: String?
+
+    private var savedRecipes: [GeneratedRecipe] { recipeRepo.recipes }
 
     var body: some View {
         NavigationStack {
@@ -171,14 +190,16 @@ struct RecipesTabView: View {
                                         onSave: nil,
                                         onDiscard: nil,
                                         onUpdate: { updated in
-                                            if let idx = savedRecipes.firstIndex(where: { $0.id == updated.id }) {
-                                                savedRecipes[idx] = updated
-                                                saveRecipes(savedRecipes)
+                                            Task {
+                                                do { try await recipeRepo.update(updated) }
+                                                catch { saveError = error.localizedDescription }
                                             }
                                         },
                                         onDelete: {
-                                            savedRecipes.removeAll { $0.id == recipe.id }
-                                            saveRecipes(savedRecipes)
+                                            Task {
+                                                do { try await recipeRepo.delete(recipe.id) }
+                                                catch { saveError = error.localizedDescription }
+                                            }
                                         }
                                     )) {
                                         recipeCard(recipe)
@@ -186,9 +207,9 @@ struct RecipesTabView: View {
                                     .buttonStyle(.plain)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
-                                            withAnimation {
-                                                savedRecipes.removeAll { $0.id == recipe.id }
-                                                saveRecipes(savedRecipes)
+                                            Task {
+                                                do { try await recipeRepo.delete(recipe.id) }
+                                                catch { saveError = error.localizedDescription }
                                             }
                                         } label: {
                                             Label("Delete", systemImage: "trash")
@@ -222,10 +243,21 @@ struct RecipesTabView: View {
             }
             .navigationDestination(isPresented: $navigateToCreate) {
                 CreateRecipeView { recipe in
-                    savedRecipes.insert(recipe, at: 0)
-                    saveRecipes(savedRecipes)
+                    Task {
+                        do { try await recipeRepo.save(recipe) }
+                        catch { saveError = error.localizedDescription }
+                    }
                 }
                 .environment(repo)
+                .environment(recipeRepo)
+            }
+            .alert("Couldn't Save Recipe", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK") { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
             }
         }
     }
@@ -369,18 +401,16 @@ struct CreateRecipeView: View {
 
     private func generateRecipe() {
         guard RecipeRateLimiter.canGenerate else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            generationError = "You've used all 5 recipes this week. Resets \(formatter.string(from: RecipeRateLimiter.resetsOn))."
+            generationError = "Monthly generation limit reached. Resets at the start of next month."
             return
         }
         isGenerating = true
         generationError = nil
         Task {
             do {
-                let recipe = try await RecipeService.generate(from: selectedItems)
+                let result = try await RecipeService.generate(from: selectedItems)
                 RecipeRateLimiter.recordGeneration()
-                generatedRecipe = recipe
+                generatedRecipe = result.recipe
                 navigateToResult = true
             } catch {
                 generationError = error.localizedDescription
@@ -641,21 +671,10 @@ struct CreateRecipeView: View {
 
     private var generateButton: some View {
         VStack(spacing: 0) {
-            // Usage indicator
-            HStack(spacing: 4) {
-                ForEach(0..<RecipeRateLimiter.maxPerWeek, id: \.self) { i in
-                    Capsule()
-                        .fill(i < RecipeRateLimiter.remaining ? Color.ftOlive : Color.ftDeepForest.opacity(0.15))
-                        .frame(height: 3)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            Text("\(RecipeRateLimiter.remaining) of \(RecipeRateLimiter.maxPerWeek) generations left this week")
+            Text("\(RecipeRateLimiter.remaining) of \(RecipeRateLimiter.maxPerMonth) generations left this month")
                 .font(.ftBody(11))
                 .foregroundStyle(Color.ftDeepForest.opacity(0.45))
+                .padding(.top, 12)
                 .padding(.bottom, 10)
 
             Button(action: generateRecipe) {
