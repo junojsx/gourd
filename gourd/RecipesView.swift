@@ -922,6 +922,10 @@ struct RecipeResultView: View {
                     Button(action: {
                         withAnimation { isSaved = true }
                         onSave(currentRecipe)
+                        // Navigate back after a brief moment so the user sees "Saved!"
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            dismiss()
+                        }
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")

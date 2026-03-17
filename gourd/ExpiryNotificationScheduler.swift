@@ -159,7 +159,7 @@ final class ExpiryNotificationScheduler: NSObject {
             return nil  // "all" is not a schedulable window
         }
 
-        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate!)
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate(for: window, prefs: prefs)!)
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         let id = "\(AppLimits.idPrefix)\(window.rawValue)"
         return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
