@@ -376,6 +376,7 @@ struct CreateRecipeView: View {
     let onSave: (GeneratedRecipe) -> Void
 
     @Environment(PantryRepository.self) private var repo
+    @Environment(RecipeRepository.self) private var recipeRepo
     @State private var selectedIDs:     Set<UUID> = []
     @State private var searchText       = ""
     @State private var isGenerating     = false
@@ -408,7 +409,8 @@ struct CreateRecipeView: View {
         generationError = nil
         Task {
             do {
-                let result = try await RecipeService.generate(from: selectedItems)
+                let existingTitles = recipeRepo.recipes.map(\.title)
+                let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
                 RecipeRateLimiter.recordGeneration()
                 generatedRecipe = result.recipe
                 navigateToResult = true

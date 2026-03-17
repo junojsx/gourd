@@ -299,7 +299,8 @@ struct CookNowView: View {
         generationError = nil
         Task {
             do {
-                let result = try await RecipeService.generate(from: selectedItems)
+                let existingTitles = recipeRepo.recipes.map(\.title)
+                let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
                 RecipeRateLimiter.recordGeneration()
                 generatedRecipe = result.recipe
                 navigateToResult = true
