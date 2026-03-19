@@ -224,7 +224,7 @@ struct CookNowView: View {
                 Text("Generate Recipe (\(selectedIds.count) item\(selectedIds.count == 1 ? "" : "s"))")
                     .font(.ftBody(15, weight: .semibold))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.ftWarmBeige)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(

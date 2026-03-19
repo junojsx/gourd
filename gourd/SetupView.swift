@@ -1062,6 +1062,7 @@ struct DeleteAccountView: View {
         }
         .toolbarBackground(Color.ftWarmBeige, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

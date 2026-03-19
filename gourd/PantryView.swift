@@ -70,7 +70,7 @@ struct PantryView: View {
             Button(action: { showManualAdd = true }) {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(Color.ftDeepForest))
                     .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -175,12 +175,12 @@ struct PantryView: View {
         Button(action: action) {
             Text(label)
                 .font(.ftBody(13, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .white : Color.ftDeepForest.opacity(0.7))
+                .foregroundStyle(isSelected ? Color.ftWarmBeige : Color.ftDeepForest.opacity(0.7))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.ftOlive : Color.white.opacity(0.7))
+                        .fill(isSelected ? Color.ftOlive : Color.ftCardBg)
                         .overlay(
                             Capsule()
                                 .strokeBorder(

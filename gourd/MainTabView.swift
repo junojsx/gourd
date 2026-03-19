@@ -72,7 +72,7 @@ struct MainTabView: View {
             Button(action: { showQuickScan = true }) {
                 Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(Color.ftDeepForest))
                     .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)

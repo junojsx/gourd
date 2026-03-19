@@ -404,7 +404,7 @@ struct ScanProductView: View {
                 }) {
                     HStack(spacing: 8) {
                         if isSaving && !addedSuccess {
-                            ProgressView().tint(.white).scaleEffect(0.8)
+                            ProgressView().tint(Color.ftWarmBeige).scaleEffect(0.8)
                         } else {
                             Image(systemName: addedSuccess ? "checkmark" : "plus")
                                 .font(.system(size: 14, weight: .bold))
@@ -412,7 +412,7 @@ struct ScanProductView: View {
                         Text(addedSuccess ? "Added to Pantry!" : "Add to Pantry")
                             .font(.ftBody(15, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
@@ -478,7 +478,7 @@ struct ScanProductView: View {
                         Text("Add Manually")
                             .font(.ftBody(15, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.ftDeepForest))
@@ -703,6 +703,12 @@ struct ManualAddItemView: View {
                         .tint(Color.ftDeepForest)
                         .font(.ftBody(15))
                     }
+                    .onChange(of: name) { _, newName in
+                        let inferred = ItemCategory(fromName: newName)
+                        if inferred != .other || category == .other {
+                            category = inferred
+                        }
+                    }
 
                     formField(label: "Storage Location", required: false) {
                         Picker("Storage", selection: $storageLocation) {
@@ -725,7 +731,7 @@ struct ManualAddItemView: View {
                     Button(action: saveItem) {
                         HStack(spacing: 8) {
                             if isSaving && !addedSuccess {
-                                ProgressView().tint(.white).scaleEffect(0.8)
+                                ProgressView().tint(Color.ftWarmBeige).scaleEffect(0.8)
                             } else {
                                 Image(systemName: addedSuccess ? "checkmark" : "plus")
                                     .font(.system(size: 14, weight: .bold))
@@ -733,7 +739,7 @@ struct ManualAddItemView: View {
                             Text(addedSuccess ? "Added to Pantry!" : "Add to Pantry")
                                 .font(.ftBody(16, weight: .semibold))
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.ftWarmBeige)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(

@@ -87,6 +87,68 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    /// Infer category from a plain item name (e.g. "Greek Yogurt" → .dairy)
+    init(fromName name: String) {
+        let lower = name.lowercased()
+        switch true {
+        case lower.contains("milk") || lower.contains("cheese") || lower.contains("yogurt") ||
+             lower.contains("yoghurt") || lower.contains("butter") || lower.contains("cream") ||
+             lower.contains("dairy") || lower.contains("kefir") || lower.contains("whey") ||
+             lower.contains("cheddar") || lower.contains("mozzarella") || lower.contains("brie") ||
+             lower.contains("parmesan") || lower.contains("ricotta") || lower.contains("feta"):
+            self = .dairy
+        case lower.contains("chicken") || lower.contains("beef") || lower.contains("pork") ||
+             lower.contains("lamb") || lower.contains("turkey") || lower.contains("fish") ||
+             lower.contains("salmon") || lower.contains("tuna") || lower.contains("shrimp") ||
+             lower.contains("prawn") || lower.contains("steak") || lower.contains("bacon") ||
+             lower.contains("sausage") || lower.contains("mince") || lower.contains("ground beef") ||
+             lower.contains("ham") || lower.contains("salami") || lower.contains("pepperoni") ||
+             lower.contains("lobster") || lower.contains("crab") || lower.contains("tilapia") ||
+             lower.contains("cod") || lower.contains("halibut") || lower.contains("meat"):
+            self = .meat
+        case lower.contains("bread") || lower.contains("bagel") || lower.contains("muffin") ||
+             lower.contains("croissant") || lower.contains("baguette") || lower.contains("roll") ||
+             lower.contains("pastry") || lower.contains("cake") || lower.contains("cookie") ||
+             lower.contains("cracker") || lower.contains("cereal") || lower.contains("granola") ||
+             lower.contains("waffle") || lower.contains("pancake") || lower.contains("biscuit") ||
+             lower.contains("tortilla") || lower.contains("pita") || lower.contains("naan"):
+            self = .bakery
+        case lower.contains("frozen") || lower.contains("ice cream") || lower.contains("gelato") ||
+             lower.contains("sorbet") || lower.contains("popsicle"):
+            self = .frozen
+        case lower.contains("juice") || lower.contains("water") || lower.contains("soda") ||
+             lower.contains("cola") || lower.contains("lemonade") || lower.contains("tea") ||
+             lower.contains("coffee") || lower.contains("espresso") || lower.contains("latte") ||
+             lower.contains("wine") || lower.contains("beer") || lower.contains("cider") ||
+             lower.contains("smoothie") || lower.contains("shake") || lower.contains("drink") ||
+             lower.contains("beverage") || lower.contains("kombucha") || lower.contains("energy drink"):
+            self = .beverage
+        case lower.contains("canned") || lower.contains("tinned") || lower.contains("beans") ||
+             lower.contains("lentils") || lower.contains("chickpeas") || lower.contains("soup") ||
+             lower.contains("tomato paste") || lower.contains("tomato sauce") ||
+             lower.contains("sardines") || lower.contains("anchovies") || lower.contains("corn") ||
+             lower.contains("peas") || lower.contains("olives") || lower.contains("pickles"):
+            self = .canned
+        case lower.contains("apple") || lower.contains("banana") || lower.contains("orange") ||
+             lower.contains("grape") || lower.contains("strawberry") || lower.contains("blueberry") ||
+             lower.contains("raspberry") || lower.contains("mango") || lower.contains("peach") ||
+             lower.contains("pear") || lower.contains("plum") || lower.contains("cherry") ||
+             lower.contains("lemon") || lower.contains("lime") || lower.contains("avocado") ||
+             lower.contains("tomato") || lower.contains("potato") || lower.contains("onion") ||
+             lower.contains("garlic") || lower.contains("carrot") || lower.contains("broccoli") ||
+             lower.contains("spinach") || lower.contains("lettuce") || lower.contains("kale") ||
+             lower.contains("cucumber") || lower.contains("pepper") || lower.contains("zucchini") ||
+             lower.contains("eggplant") || lower.contains("mushroom") || lower.contains("celery") ||
+             lower.contains("cabbage") || lower.contains("cauliflower") || lower.contains("asparagus") ||
+             lower.contains("herb") || lower.contains("basil") || lower.contains("cilantro") ||
+             lower.contains("parsley") || lower.contains("produce") || lower.contains("fruit") ||
+             lower.contains("vegetable") || lower.contains("veggie") || lower.contains("berry"):
+            self = .produce
+        default:
+            self = .other
+        }
+    }
+
     /// Infer category from an Open Food Facts tag (e.g. "en:dairy-products")
     init(fromOFFTag tag: String?) {
         guard let tag else { self = .other; return }

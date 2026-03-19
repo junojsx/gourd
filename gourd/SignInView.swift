@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SignInView: View {
     @Environment(AuthManager.self) private var auth
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     @State private var email            = ""
     @State private var password         = ""
@@ -141,6 +142,7 @@ struct SignInView: View {
             Task {
                 do {
                     try await auth.signIn(email: email, password: password)
+                    hasCompletedOnboarding = true
                 } catch {
                     errorMessage = error.localizedDescription
                 }

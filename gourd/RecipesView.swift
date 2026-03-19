@@ -243,7 +243,7 @@ struct RecipesTabView: View {
                         Text("Create Recipe")
                             .font(.ftBody(14, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                     .background(Capsule().fill(Color.ftDeepForest))
@@ -958,7 +958,7 @@ struct RecipeResultView: View {
                 HStack(alignment: .top, spacing: 12) {
                     Text("\(index + 1)")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.ftWarmBeige)
                         .frame(width: 24, height: 24)
                         .background(Circle().fill(Color.ftDeepForest))
                     Text(step)
@@ -992,7 +992,7 @@ struct RecipeResultView: View {
                             Text(isSaved ? "Saved!" : "Save Recipe")
                                 .font(.ftBody(15, weight: .semibold))
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.ftWarmBeige)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
                         .background(

@@ -41,11 +41,37 @@ final class AuthManager {
 
     private func observeAuthState() async {
         for await (_, session) in supabase.auth.authStateChanges {
+            if let session {
+                await ensureProfile(session: session)
+            }
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     self.authState = session.map { AuthManager.AuthState.authenticated($0) } ?? .unauthenticated
                 }
             }
+        }
+    }
+
+    /// Upserts the profile row so pantry_items FK (→ profiles.id) is always satisfied.
+    /// Safe to call on every sign-in; ON CONFLICT DO NOTHING skips existing rows.
+    private func ensureProfile(session: Session) async {
+        struct ProfileUpsert: Encodable {
+            let id: UUID
+            let email: String
+            enum CodingKeys: String, CodingKey {
+                case id, email
+            }
+        }
+        do {
+            try await supabase
+                .from("profiles")
+                .upsert(
+                    ProfileUpsert(id: session.user.id, email: session.user.email ?? ""),
+                    onConflict: "id"
+                )
+                .execute()
+        } catch {
+            print("⚠️ ensureProfile failed:", error)
         }
     }
 
