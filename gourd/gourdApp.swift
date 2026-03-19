@@ -7,7 +7,6 @@ import SwiftUI
 
 @main
 struct gourdApp: App {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var authManager   = AuthManager()
     @State private var pantryRepo    = PantryRepository()
     @State private var recipeRepo    = RecipeRepository()
@@ -19,13 +18,12 @@ struct gourdApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                ContentView()
-                    .environment(authManager)
-                    .environment(pantryRepo)
-                    .environment(recipeRepo)
-                    .environment(themeManager)
-                    .preferredColorScheme(themeManager.colorScheme)
+            ContentView()
+                .environment(authManager)
+                .environment(pantryRepo)
+                .environment(recipeRepo)
+                .environment(themeManager)
+                .preferredColorScheme(themeManager.colorScheme)
                 // Kick off a fetch the moment auth is confirmed — before any tab renders.
                 // Restarts whenever isAuthenticated flips (login / logout).
                 .task(id: authManager.isAuthenticated) {
@@ -52,9 +50,6 @@ struct gourdApp: App {
                             .environment(recipeRepo)
                     }
                 }
-            } else {
-                OnboardingFlow()
-            }
         }
     }
 

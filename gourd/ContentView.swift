@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         switch auth.authState {
@@ -17,7 +18,11 @@ struct ContentView: View {
                 SignInView()
             }
         case .authenticated(_):
-            MainTabView()
+            if hasCompletedOnboarding {
+                MainTabView()
+            } else {
+                OnboardingFlow()
+            }
         }
     }
 
