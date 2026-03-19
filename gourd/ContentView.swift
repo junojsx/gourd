@@ -24,11 +24,14 @@ struct ContentView: View {
     private var splashView: some View {
         ZStack {
             Color.ftWarmBeige.ignoresSafeArea()
-            VStack(spacing: 24) {
+            VStack(spacing: 16) {
                 Image("GourdLogo")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 220)
+                Text("gourdo")
+                    .font(.ftDisplay(32))
+                    .foregroundStyle(Color.ftDeepForest)
                 ProgressView()
                     .tint(Color.ftOlive)
                     .scaleEffect(1.2)

@@ -135,7 +135,7 @@ struct ProductDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 Text(item.name)
-                    .font(.system(size: 20, weight: .bold, design: .serif))
+                    .font(.ftDisplay(20))
                     .foregroundStyle(Color.ftDeepForest)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
@@ -369,7 +369,7 @@ struct ProductDetailView: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color.white.opacity(0.7))
+            .fill(Color.ftCardBg.opacity(0.7))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)

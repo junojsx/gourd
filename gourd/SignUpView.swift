@@ -95,6 +95,10 @@ struct SignUpView: View {
                 .scaledToFit()
                 .frame(width: 300)
 
+            Text("gourdo")
+                .font(.ftDisplay(32))
+                .foregroundStyle(Color.ftDeepForest)
+
             Text("Reduce waste. Eat fresh.")
                 .font(.ftBody(18))
                 .foregroundStyle(Color.ftDeepForest50)

@@ -63,11 +63,10 @@ struct HomeView: View {
     private var heroTextSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Elegant Kitchen")
-                .font(.system(size: 36, weight: .bold, design: .serif))
+                .font(.ftDisplay(36))
                 .foregroundStyle(Color.ftDeepForest)
             Text("Management.")
-                .font(.system(size: 36, weight: .bold, design: .serif))
-                .italic()
+                .font(.ftDisplay(36))
                 .foregroundStyle(Color.ftDeepForest)
 
             Text("Master your inventory with intuitive barcode scanning and smart expiry alerts. Minimize waste, maximize freshness.")
@@ -130,7 +129,7 @@ struct HomeView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.ftCardBg.opacity(0.7))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
@@ -232,7 +231,7 @@ struct FeatureCard: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.65))
+                .fill(Color.ftCardBg.opacity(0.65))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.45), lineWidth: 1)

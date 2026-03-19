@@ -430,7 +430,7 @@ struct ScanProductView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.9))
+                                .fill(Color.ftCardBg.opacity(0.9))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .strokeBorder(Color.ftSoftClay, lineWidth: 1)
@@ -492,7 +492,7 @@ struct ScanProductView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.9))
+                                .fill(Color.ftCardBg.opacity(0.9))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .strokeBorder(Color.ftSoftClay, lineWidth: 1)
@@ -667,7 +667,7 @@ struct ManualAddItemView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.white.opacity(0.8))
+                                    .fill(Color.ftCardBg.opacity(0.8))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
                                             .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
@@ -684,7 +684,7 @@ struct ManualAddItemView: View {
                                 .padding(.vertical, 12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.8))
+                                        .fill(Color.ftCardBg.opacity(0.8))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
                                                 .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
@@ -794,7 +794,7 @@ struct ManualAddItemView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.8))
+                    .fill(Color.ftCardBg.opacity(0.8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)

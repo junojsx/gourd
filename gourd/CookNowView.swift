@@ -132,6 +132,13 @@ struct CookNowView: View {
                     onDiscard: {
                         selectedIds = []
                         navigateToResult = false
+                    },
+                    onRegenerate: {
+                        let existingTitles = recipeRepo.recipes.map(\.title) + [recipe.title]
+                        let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
+                        RecipeRateLimiter.recordGeneration()
+                        generatedRecipe = result.recipe
+                        return result.recipe
                     }
                 )
                 .environment(recipeRepo)
@@ -199,7 +206,7 @@ struct CookNowView: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.ftCardBg.opacity(0.7))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)

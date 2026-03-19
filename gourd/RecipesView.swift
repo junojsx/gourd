@@ -168,8 +168,17 @@ struct RecipesTabView: View {
     @Environment(RecipeRepository.self) private var recipeRepo
     @State private var navigateToCreate = false
     @State private var saveError: String?
+    @State private var searchText = ""
 
     private var savedRecipes: [GeneratedRecipe] { recipeRepo.recipes }
+
+    private var filteredRecipes: [GeneratedRecipe] {
+        guard !searchText.isEmpty else { return savedRecipes }
+        return savedRecipes.filter { recipe in
+            recipe.title.localizedCaseInsensitiveContains(searchText)
+            || recipe.ingredients.contains { $0.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -182,9 +191,11 @@ struct RecipesTabView: View {
                     if savedRecipes.isEmpty {
                         emptyState
                     } else {
+                        searchBar
+
                         ScrollView(showsIndicators: false) {
                             VStack(spacing: 12) {
-                                ForEach(savedRecipes) { recipe in
+                                ForEach(filteredRecipes) { recipe in
                                     NavigationLink(destination: RecipeResultView(
                                         recipe: recipe,
                                         onSave: nil,
@@ -289,6 +300,39 @@ struct RecipesTabView: View {
         .background(Color.ftWarmBeige)
     }
 
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.ftPlaceholder)
+            TextField("Search recipes or ingredients", text: $searchText, prompt: Text("Search recipes or ingredients").foregroundStyle(Color.ftPlaceholder))
+                .font(.ftBody(14))
+                .foregroundStyle(Color.ftDeepForest)
+                .tint(Color.ftDeepForest)
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.ftDeepForest.opacity(0.3))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.ftCardBg.opacity(0.7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
     // MARK: - Recipe Card
 
     private func recipeCard(_ recipe: GeneratedRecipe) -> some View {
@@ -341,7 +385,7 @@ struct RecipesTabView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.8))
+                .fill(Color.ftCardBg.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -493,6 +537,13 @@ struct CreateRecipeView: View {
                     onDiscard: {
                         selectedIDs = []
                         navigateToResult = false
+                    },
+                    onRegenerate: {
+                        let existingTitles = recipeRepo.recipes.map(\.title) + [recipe.title]
+                        let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
+                        RecipeRateLimiter.recordGeneration()
+                        generatedRecipe = result.recipe
+                        return result.recipe
                     }
                 )
             }
@@ -528,7 +579,7 @@ struct CreateRecipeView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("What's in your pantry?")
-                .font(.system(size: 26, weight: .bold, design: .serif))
+                .font(.ftDisplay(26))
                 .foregroundStyle(Color.ftDeepForest)
             Text("Select ingredients to generate a custom AI recipe.")
                 .font(.ftBody(14))
@@ -565,7 +616,7 @@ struct CreateRecipeView: View {
         .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.8))
+                .fill(Color.ftCardBg.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
@@ -622,7 +673,7 @@ struct CreateRecipeView: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.7))
+                    .fill(Color.ftCardBg.opacity(0.7))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -714,19 +765,25 @@ struct RecipeResultView: View {
     let onUpdate: ((GeneratedRecipe) -> Void)?
     /// Called when the user deletes a saved recipe. Nil when generating a new recipe.
     let onDelete: (() -> Void)?
+    /// Called when the user wants a different recipe. Nil when viewing a pre-saved recipe.
+    let onRegenerate: (() async throws -> GeneratedRecipe)?
 
     @State private var currentRecipe: GeneratedRecipe
     @State private var isSaved: Bool
+    @State private var isRegenerating = false
     @State private var showDeleteConfirm = false
     @State private var navigateToEdit = false
+    @State private var regenerateError: String?
     @Environment(\.dismiss) private var dismiss
 
     init(recipe: GeneratedRecipe, onSave: ((GeneratedRecipe) -> Void)?, onDiscard: (() -> Void)?,
-         onUpdate: ((GeneratedRecipe) -> Void)? = nil, onDelete: (() -> Void)? = nil) {
+         onUpdate: ((GeneratedRecipe) -> Void)? = nil, onDelete: (() -> Void)? = nil,
+         onRegenerate: (() async throws -> GeneratedRecipe)? = nil) {
         self.onSave = onSave
         self.onDiscard = onDiscard
         self.onUpdate = onUpdate
         self.onDelete = onDelete
+        self.onRegenerate = onRegenerate
         _currentRecipe = State(initialValue: recipe)
         // Pre-saved recipes start in saved state
         _isSaved = State(initialValue: onSave == nil)
@@ -742,7 +799,7 @@ struct RecipeResultView: View {
                         VStack(alignment: .leading, spacing: 20) {
                             aiBadge
                             Text(currentRecipe.title)
-                                .font(.system(size: 24, weight: .bold, design: .serif))
+                                .font(.ftDisplay(24))
                                 .foregroundStyle(Color.ftDeepForest)
                             metaRow
 
@@ -883,7 +940,7 @@ struct RecipeResultView: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.white.opacity(0.7))
+                        .fill(Color.ftCardBg.opacity(0.7))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
                                 .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -945,24 +1002,64 @@ struct RecipeResultView: View {
                     }
                     .disabled(isSaved)
 
-                    Button(action: { onDiscard(); dismiss() }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Discard")
-                                .font(.ftBody(15, weight: .semibold))
+                    if let onRegenerate {
+                        Button(action: {
+                            isRegenerating = true
+                            regenerateError = nil
+                            Task {
+                                do {
+                                    let newRecipe = try await onRegenerate()
+                                    withAnimation { currentRecipe = newRecipe }
+                                } catch {
+                                    regenerateError = error.localizedDescription
+                                }
+                                isRegenerating = false
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                if isRegenerating {
+                                    ProgressView()
+                                        .tint(Color.ftDeepForest)
+                                } else {
+                                    Image(systemName: "arrow.trianglehead.2.counterclockwise")
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                                Text(isRegenerating ? "Generating..." : "Try Another")
+                                    .font(.ftBody(15, weight: .semibold))
+                            }
+                            .foregroundStyle(Color.ftDeepForest)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.ftCardBg.opacity(0.7))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.ftSoftClay, lineWidth: 1)
+                                    )
+                            )
                         }
-                        .foregroundStyle(Color.ftDeepForest)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.7))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(Color.ftSoftClay, lineWidth: 1)
-                                )
-                        )
+                        .disabled(isRegenerating || isSaved)
+                    } else {
+                        Button(action: { onDiscard(); dismiss() }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Discard")
+                                    .font(.ftBody(15, weight: .semibold))
+                            }
+                            .foregroundStyle(Color.ftDeepForest)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.ftCardBg.opacity(0.7))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.ftSoftClay, lineWidth: 1)
+                                    )
+                            )
+                        }
                     }
                 }
             } else {
@@ -1014,6 +1111,14 @@ struct RecipeResultView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isSaved)
+        .alert("Couldn't Regenerate", isPresented: Binding(
+            get: { regenerateError != nil },
+            set: { if !$0 { regenerateError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(regenerateError ?? "")
+        }
     }
 }
 

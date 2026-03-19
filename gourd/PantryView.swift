@@ -139,7 +139,7 @@ struct PantryView: View {
         .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.8))
+                .fill(Color.ftCardBg.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.5), lineWidth: 1)
@@ -274,7 +274,7 @@ struct PantryView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.8))
+                .fill(Color.ftCardBg.opacity(0.8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)

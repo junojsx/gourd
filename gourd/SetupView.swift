@@ -10,6 +10,7 @@ import UserNotifications
 
 struct SetupView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(ThemeManager.self) private var themeManager
 
     @State private var prefs = NotificationPrefs.shared
     @State private var systemAuthStatus: UNAuthorizationStatus = .notDetermined
@@ -26,6 +27,7 @@ struct SetupView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 24) {
                             profileCard
+                            appearanceSection
                             accountSection
                             notificationsSection
                             signOutSection
@@ -118,6 +120,43 @@ struct SetupView: View {
     }
 
     // MARK: - Account Section
+
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        @Bindable var theme = themeManager
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("APPEARANCE")
+
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.ftOlive.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: theme.isDarkMode ? "moon.fill" : "sun.max.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.ftOlive)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dark Mode")
+                        .font(.ftBody(15, weight: .semibold))
+                        .foregroundStyle(Color.ftDeepForest)
+                    Text(theme.isDarkMode ? "On" : "Off")
+                        .font(.ftBody(13))
+                        .foregroundStyle(Color.ftDeepForest50)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $theme.isDarkMode)
+                    .labelsHidden()
+                    .tint(Color.ftOlive)
+            }
+            .padding(14)
+            .background(cardBackground)
+        }
+    }
 
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -421,7 +460,7 @@ struct SetupView: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color.white.opacity(0.7))
+            .fill(Color.ftCardBg.opacity(0.7))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -611,7 +650,7 @@ private struct SecureFormField: View {
             .padding(.vertical, 13)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.8))
+                    .fill(Color.ftCardBg.opacity(0.8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.ftSoftClay.opacity(0.6), lineWidth: 1)
@@ -744,7 +783,7 @@ struct ManageSubscriptionView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.ftCardBg.opacity(0.7))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -797,7 +836,7 @@ struct ManageSubscriptionView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.7))
+                .fill(Color.ftCardBg.opacity(0.7))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -925,7 +964,7 @@ struct DeleteAccountView: View {
                     }
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.7))
+                            .fill(Color.ftCardBg.opacity(0.7))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
@@ -949,7 +988,7 @@ struct DeleteAccountView: View {
                         .padding(.vertical, 13)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.8))
+                                .fill(Color.ftCardBg.opacity(0.8))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .strokeBorder(
