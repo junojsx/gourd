@@ -78,9 +78,7 @@ struct SignInView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .animation(.easeInOut(duration: 0.2), value: showResetConfirm)
-        .animation(.easeInOut(duration: 0.2), value: auth.isLoading)
+        .transaction { $0.animation = nil }
     }
 
     // MARK: - Header

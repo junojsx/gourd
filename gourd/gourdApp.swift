@@ -19,15 +19,6 @@ struct gourdApp: App {
 
     private let scheduler = ExpiryNotificationScheduler.shared
 
-    init() {
-        // Configure RevenueCat as early as possible, before any UI renders.
-        // Switch to your production key before App Store submission.
-        #if DEBUG
-        Purchases.logLevel = .debug
-        #endif
-        Purchases.configure(withAPIKey: "test_QxqoueYScqQHhpXziyhIFWMtbup")
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -37,8 +28,13 @@ struct gourdApp: App {
                 .environment(recipeRepo)
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.colorScheme)
-                // Keep CustomerInfo in sync for the lifetime of the app.
+                // Configure RevenueCat once the app scene is ready,
+                // then start listening for subscription changes.
                 .task {
+                    #if DEBUG
+                    Purchases.logLevel = .debug
+                    #endif
+                    Purchases.configure(withAPIKey: "appl_rRgNlNskAfAaMNrZanEIeiZWtiU")
                     subscriptionManager.prefetchOfferings()
                     await subscriptionManager.startListening()
                 }

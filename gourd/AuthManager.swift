@@ -133,6 +133,9 @@ final class AuthManager {
         isLoading = true
         defer { isLoading = false }
         try await supabase.rpc("delete_account").execute()
+        // Clear the local session from the keychain so the next app launch
+        // doesn't restore the now-invalid token and appear authenticated.
+        try await supabase.auth.signOut()
         withAnimation(.easeInOut(duration: 0.25)) {
             authState = .unauthenticated
         }

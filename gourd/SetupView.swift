@@ -3,6 +3,7 @@
 //  gourd
 //
 
+import RevenueCat
 import SwiftUI
 import UserNotifications
 
@@ -663,12 +664,22 @@ private struct SecureFormField: View {
 // MARK: - ManageSubscriptionView
 
 struct ManageSubscriptionView: View {
-    @State private var showUpgradeConfirm = false
-    @State private var isUpgraded = false
+    @Environment(SubscriptionManager.self) private var subscriptions
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    @State private var offering: Offering?
+    @State private var selectedPackage: Package?
+    @State private var isPurchasing = false
+    @State private var purchaseError: String?
+
+    private var isPro: Bool { subscriptions.isProSubscriber }
+
+    private var activeEntitlement: EntitlementInfo? {
+        subscriptions.customerInfo?.entitlements[SubscriptionManager.Entitlement.gourdoPro]
+    }
 
     private let features: [(String, Bool, Bool)] = [
-        // (feature, free, pro)
         ("Pantry tracking",         true,  true),
         ("AI recipe generation",    true,  true),
         ("Unlimited saved recipes", false, true),
@@ -680,28 +691,50 @@ struct ManageSubscriptionView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
-                // Current plan banner
                 currentPlanBanner
 
-                // Feature comparison
+                if isPro {
+                    subscriptionDetails
+                }
+
                 featureTable
 
-                if !isUpgraded {
+                if !isPro {
+                    if let offering {
+                        packagePicker(offering: offering)
+                    }
                     upgradeBanner
+                }
+
+                if isPro {
+                    manageButtons
+                }
+
+                if let purchaseError {
+                    Text(purchaseError)
+                        .font(.ftBody(13))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, 20)
-            .padding(.bottom, 110)
+            .padding(.bottom, isPro ? 20 : 110)
         }
         .background(Color.ftWarmBeige)
         .safeAreaInset(edge: .bottom) {
-            if !isUpgraded {
-                Button(action: { showUpgradeConfirm = true }) {
+            if !isPro {
+                Button(action: { Task { await purchase() } }) {
                     HStack(spacing: 8) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Upgrade to Pro — $4.99/mo")
+                        if isPurchasing {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        Text(upgradeButtonLabel)
                             .font(.ftBody(15, weight: .semibold))
                     }
                     .foregroundStyle(.white)
@@ -713,15 +746,11 @@ struct ManageSubscriptionView: View {
                     )
                     .ftShadowMd()
                 }
+                .disabled(isPurchasing || selectedPackage == nil)
+                .opacity(isPurchasing ? 0.7 : 1)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(Color.ftWarmBeige)
-                .confirmationDialog("Upgrade to Gourd Pro?", isPresented: $showUpgradeConfirm, titleVisibility: .visible) {
-                    Button("Upgrade — $4.99/mo") { withAnimation { isUpgraded = true } }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("You'll be charged $4.99/month. Cancel anytime.")
-                }
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -741,41 +770,55 @@ struct ManageSubscriptionView: View {
         }
         .toolbarBackground(Color.ftWarmBeige, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .task { await loadOfferings() }
     }
+
+    // MARK: - Upgrade Button Label
+
+    private var upgradeButtonLabel: String {
+        guard let pkg = selectedPackage else {
+            return "Upgrade to Pro"
+        }
+        let price = pkg.storeProduct.localizedPriceString
+        let period = pkg.packageType == .annual ? "/yr" : "/mo"
+        return "Upgrade to Pro — \(price)\(period)"
+    }
+
+    // MARK: - Current Plan Banner
 
     private var currentPlanBanner: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(isUpgraded ? Color(hex: "94632F").opacity(0.12) : Color.ftDeepForest.opacity(0.07))
+                    .fill(isPro ? Color(hex: "94632F").opacity(0.12) : Color.ftDeepForest.opacity(0.07))
                     .frame(width: 46, height: 46)
-                Image(systemName: isUpgraded ? "crown.fill" : "person.fill")
+                Image(systemName: isPro ? "crown.fill" : "person.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(isUpgraded ? Color(hex: "94632F") : Color.ftDeepForest.opacity(0.5))
+                    .foregroundStyle(isPro ? Color(hex: "94632F") : Color.ftDeepForest.opacity(0.5))
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(isUpgraded ? "Gourd Pro" : "Free Plan")
+                Text(isPro ? "Gourd Pro" : "Free Plan")
                     .font(.ftBody(16, weight: .bold))
                     .foregroundStyle(Color.ftDeepForest)
-                Text(isUpgraded ? "All features unlocked" : "Limited features")
+                Text(isPro ? "All features unlocked" : "Limited features")
                     .font(.ftBody(13))
                     .foregroundStyle(Color.ftDeepForest50)
             }
 
             Spacer()
 
-            Text(isUpgraded ? "ACTIVE" : "FREE")
+            Text(statusLabel)
                 .font(.ftBody(10, weight: .bold))
                 .kerning(0.5)
-                .foregroundStyle(isUpgraded ? Color(hex: "94632F") : Color.ftDeepForest.opacity(0.4))
+                .foregroundStyle(isPro ? Color(hex: "94632F") : Color.ftDeepForest.opacity(0.4))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
                     Capsule()
-                        .fill(isUpgraded ? Color(hex: "94632F").opacity(0.1) : Color.ftDeepForest.opacity(0.06))
+                        .fill(isPro ? Color(hex: "94632F").opacity(0.1) : Color.ftDeepForest.opacity(0.06))
                         .overlay(Capsule().strokeBorder(
-                            isUpgraded ? Color(hex: "94632F").opacity(0.35) : Color.ftDeepForest.opacity(0.15),
+                            isPro ? Color(hex: "94632F").opacity(0.35) : Color.ftDeepForest.opacity(0.15),
                             lineWidth: 1
                         ))
                 )
@@ -791,9 +834,66 @@ struct ManageSubscriptionView: View {
         )
     }
 
+    private var statusLabel: String {
+        guard let entitlement = activeEntitlement else { return "FREE" }
+        if entitlement.periodType == .trial { return "TRIAL" }
+        return "ACTIVE"
+    }
+
+    // MARK: - Subscription Details (Pro users)
+
+    private var subscriptionDetails: some View {
+        VStack(spacing: 0) {
+            if let entitlement = activeEntitlement {
+                detailRow(
+                    label: "Plan",
+                    value: entitlement.productIdentifier == SubscriptionManager.ProductID.yearly
+                        ? "Yearly" : "Monthly"
+                )
+
+                if entitlement.periodType == .trial {
+                    Divider().background(Color.ftSoftClay.opacity(0.4))
+                    detailRow(label: "Status", value: "Free Trial")
+                }
+
+                if let expirationDate = entitlement.expirationDate {
+                    Divider().background(Color.ftSoftClay.opacity(0.4))
+                    let willRenew = entitlement.willRenew
+                    detailRow(
+                        label: willRenew ? "Renews" : "Expires",
+                        value: expirationDate.formatted(date: .abbreviated, time: .omitted)
+                    )
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.ftCardBg.opacity(0.7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.ftSoftClay.opacity(0.4), lineWidth: 1)
+                )
+        )
+    }
+
+    private func detailRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.ftBody(14))
+                .foregroundStyle(Color.ftDeepForest50)
+            Spacer()
+            Text(value)
+                .font(.ftBody(14, weight: .semibold))
+                .foregroundStyle(Color.ftDeepForest)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+    }
+
+    // MARK: - Feature Table
+
     private var featureTable: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 Text("FEATURE")
                     .font(.ftBody(10, weight: .bold))
@@ -814,7 +914,7 @@ struct ManageSubscriptionView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
-            ForEach(Array(features.enumerated()), id: \.offset) { index, row in
+            ForEach(Array(features.enumerated()), id: \.offset) { _, row in
                 let (name, free, pro) = row
                 VStack(spacing: 0) {
                     Divider()
@@ -850,13 +950,82 @@ struct ManageSubscriptionView: View {
             .foregroundStyle(available ? Color.ftOlive : Color.ftDeepForest.opacity(0.18))
     }
 
+    // MARK: - Package Picker (Free users)
+
+    private func packagePicker(offering: Offering) -> some View {
+        VStack(spacing: 10) {
+            ForEach(offering.availablePackages, id: \.identifier) { pkg in
+                let isSelected = selectedPackage?.identifier == pkg.identifier
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedPackage = pkg
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(isSelected ? Color(hex: "94632F") : Color.ftDeepForest.opacity(0.25))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(packageTitle(pkg))
+                                .font(.ftBody(15, weight: .semibold))
+                                .foregroundStyle(Color.ftDeepForest)
+                            if let subtitle = packageSubtitle(pkg) {
+                                Text(subtitle)
+                                    .font(.ftBody(12))
+                                    .foregroundStyle(Color.ftDeepForest50)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text(pkg.storeProduct.localizedPriceString)
+                            .font(.ftBody(15, weight: .bold))
+                            .foregroundStyle(Color.ftDeepForest)
+                    }
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.ftCardBg.opacity(0.7))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(
+                                        isSelected ? Color(hex: "94632F") : Color.ftSoftClay.opacity(0.4),
+                                        lineWidth: isSelected ? 2 : 1
+                                    )
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func packageTitle(_ pkg: Package) -> String {
+        switch pkg.packageType {
+        case .monthly:  return "Monthly"
+        case .annual:   return "Yearly"
+        default:        return pkg.storeProduct.localizedTitle
+        }
+    }
+
+    private func packageSubtitle(_ pkg: Package) -> String? {
+        switch pkg.packageType {
+        case .monthly:  return "Billed monthly"
+        case .annual:   return "Billed annually"
+        default:        return nil
+        }
+    }
+
+    // MARK: - Upgrade Banner
+
     private var upgradeBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "sparkles")
                 .font(.system(size: 18))
                 .foregroundStyle(Color(hex: "94632F"))
             VStack(alignment: .leading, spacing: 3) {
-                Text("Unlock everything for $4.99/mo")
+                Text("Unlock all features")
                     .font(.ftBody(14, weight: .semibold))
                     .foregroundStyle(Color.ftDeepForest)
                 Text("Cancel anytime. No commitments.")
@@ -873,6 +1042,77 @@ struct ManageSubscriptionView: View {
                         .strokeBorder(Color(hex: "94632F").opacity(0.2), lineWidth: 1)
                 )
         )
+    }
+
+    // MARK: - Manage Buttons (Pro users)
+
+    private var manageButtons: some View {
+        VStack(spacing: 10) {
+            if let managementURL = subscriptions.customerInfo?.managementURL {
+                Button {
+                    openURL(managementURL)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Manage on App Store")
+                            .font(.ftBody(15, weight: .semibold))
+                    }
+                    .foregroundStyle(Color(hex: "94632F"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(hex: "94632F").opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color(hex: "94632F").opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                }
+            }
+
+            Button {
+                Task { await subscriptions.restorePurchases() }
+            } label: {
+                Text("Restore Purchases")
+                    .font(.ftBody(14))
+                    .foregroundStyle(Color.ftDeepForest50)
+            }
+            .disabled(subscriptions.isRestoring)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func loadOfferings() async {
+        do {
+            let offerings = try await Purchases.shared.offerings()
+            offering = offerings.current
+            // Pre-select monthly by default, fall back to first available
+            if let monthly = offering?.monthly {
+                selectedPackage = monthly
+            } else {
+                selectedPackage = offering?.availablePackages.first
+            }
+        } catch {
+            offering = nil
+        }
+    }
+
+    private func purchase() async {
+        guard let pkg = selectedPackage else { return }
+        isPurchasing = true
+        purchaseError = nil
+        do {
+            let result = try await Purchases.shared.purchase(package: pkg)
+            if !result.userCancelled {
+                subscriptions.update(result.customerInfo)
+            }
+        } catch {
+            purchaseError = error.localizedDescription
+        }
+        isPurchasing = false
     }
 }
 

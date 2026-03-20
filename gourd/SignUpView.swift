@@ -9,7 +9,6 @@ import SwiftUI
 
 struct SignUpView: View {
     @Environment(AuthManager.self) private var auth
-    @Environment(\.dismiss) private var dismiss
 
     @State private var email           = ""
     @State private var password        = ""
@@ -77,8 +76,7 @@ struct SignUpView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .animation(.easeInOut(duration: 0.2), value: auth.isLoading)
+        .transaction { $0.animation = nil }
         .alert("Check your email", isPresented: $awaitingConfirmation) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -174,7 +172,7 @@ struct SignUpView: View {
             Text("Already have an account?")
                 .font(.ftBody(14))
                 .foregroundStyle(Color.ftDeepForest50)
-            Button("Sign In") { dismiss() }
+            NavigationLink("Sign In", destination: SignInView())
                 .font(.ftBody(14, weight: .semibold))
                 .foregroundStyle(Color.ftOlive)
         }
@@ -276,7 +274,6 @@ struct FTTextField: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: errorMessage)
-        .animation(.easeInOut(duration: 0.15), value: isFocused)
     }
 
     private var borderColor: Color {
@@ -342,7 +339,6 @@ struct FTSecureField: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: errorMessage)
-        .animation(.easeInOut(duration: 0.15), value: isFocused)
     }
 
     private var borderColor: Color {

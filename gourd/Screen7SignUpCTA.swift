@@ -91,8 +91,10 @@ struct Screen7SignUpCTA: View {
                 Text("I already have an account")
                     .font(.ftBody(14))
                     .foregroundColor(.textMuted)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 42)
             }
+            .contentShape(Rectangle())
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 28)

@@ -109,8 +109,14 @@ struct PaywallScreen: View {
     private func loadOffering() async {
         do {
             let offerings = try await Purchases.shared.offerings()
-            offering = offerings.current
+            print("🔵 [Paywall] All offering IDs: \(offerings.all.keys.sorted())")
+            print("🔵 [Paywall] Current offering: \(offerings.current?.identifier ?? "nil")")
+            let match = offerings.offering(identifier: "Gourdo_Main")
+            print("🔵 [Paywall] Gourdo_Main lookup: \(match?.identifier ?? "nil")")
+            print("🔵 [Paywall] Packages: \(match?.availablePackages.map(\.identifier) ?? [])")
+            offering = match ?? offerings.current
         } catch {
+            print("🔴 [Paywall] Failed to load offerings: \(error)")
             offering = nil
         }
         isLoading = false
