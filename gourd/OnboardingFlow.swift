@@ -2,21 +2,23 @@
 //  OnboardingFlow.swift
 //  gourd
 //
-//  Root container for the 6-screen onboarding flow (5 value screens + paywall).
-//  Uses a paged TabView for the swipe-through feel.
+//  7-screen value flow ending with a sign-up pitch.
+//  onComplete → user wants to create an account (shows SignUpView)
+//  onSignIn   → user already has an account (shows SignInView)
 //
 
 import SwiftUI
 
 struct OnboardingFlow: View {
+    let onComplete: () -> Void
+    let onSignIn: () -> Void
+
     @State private var currentStep: Int = 0
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         ZStack {
             Color.appBackground.ignoresSafeArea()
 
-            // Ambient background blobs
             GeometryReader { geo in
                 Circle()
                     .fill(Color.green600.opacity(0.18))
@@ -33,18 +35,20 @@ struct OnboardingFlow: View {
             .ignoresSafeArea()
 
             TabView(selection: $currentStep) {
-                Screen1Hook(onNext: { go(to: 1) }, onSkip: { go(to: 5) })
+                Screen1Hook(onNext: { go(to: 1) }, onSkip: { go(to: 6) })
                     .tag(0)
-                Screen2HowItWorks(onNext: { go(to: 2) }, onSkip: { go(to: 5) })
+                Screen2HowItWorks(onNext: { go(to: 2) }, onSkip: { go(to: 6) })
                     .tag(1)
-                Screen3PantryPreview(onNext: { go(to: 3) }, onSkip: { go(to: 5) })
+                Screen3PantryPreview(onNext: { go(to: 3) }, onSkip: { go(to: 6) })
                     .tag(2)
-                Screen4Recipes(onNext: { go(to: 4) }, onSkip: { go(to: 5) })
+                Screen4Recipes(onNext: { go(to: 4) }, onSkip: { go(to: 6) })
                     .tag(3)
                 Screen5Notifications(onNext: { go(to: 5) })
                     .tag(4)
-                PaywallScreen(onComplete: { hasCompletedOnboarding = true })
+                Screen6NotificationsPermission(onNext: { go(to: 6) })
                     .tag(5)
+                Screen7SignUpCTA(onCreateAccount: onComplete, onSignIn: onSignIn)
+                    .tag(6)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut(duration: 0.35), value: currentStep)

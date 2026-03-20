@@ -7,7 +7,6 @@ import SwiftUI
 
 struct SignInView: View {
     @Environment(AuthManager.self) private var auth
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     @State private var email            = ""
     @State private var password         = ""
@@ -97,9 +96,10 @@ struct SignInView: View {
                 .font(.ftDisplay(32))
                 .foregroundStyle(Color.ftDeepForest)
 
-            Text("Reduce waste. Eat fresh.")
-                .font(.ftBody(18))
+            Text("Start saving money and stop wasting food.")
+                .font(.ftBody(16))
                 .foregroundStyle(Color.ftDeepForest50)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -142,7 +142,6 @@ struct SignInView: View {
             Task {
                 do {
                     try await auth.signIn(email: email, password: password)
-                    hasCompletedOnboarding = true
                 } catch {
                     errorMessage = error.localizedDescription
                 }

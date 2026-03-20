@@ -3,40 +3,60 @@
 //  gourd
 //
 
+import RevenueCat
+import Supabase
 import SwiftUI
 
 @main
 struct gourdApp: App {
-    @State private var authManager   = AuthManager()
-    @State private var pantryRepo    = PantryRepository()
-    @State private var recipeRepo    = RecipeRepository()
-    @State private var themeManager  = ThemeManager()
-    @State private var showCookNow   = false
+    @State private var authManager         = AuthManager()
+    @State private var subscriptionManager = SubscriptionManager()
+    @State private var pantryRepo          = PantryRepository()
+    @State private var recipeRepo          = RecipeRepository()
+    @State private var themeManager        = ThemeManager()
+    @State private var showCookNow         = false
     @State private var cookNowFilter: CookNowFilter?
 
     private let scheduler = ExpiryNotificationScheduler.shared
+
+    init() {
+        // Configure RevenueCat as early as possible, before any UI renders.
+        // Switch to your production key before App Store submission.
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #endif
+        Purchases.configure(withAPIKey: "test_QxqoueYScqQHhpXziyhIFWMtbup")
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(authManager)
+                .environment(subscriptionManager)
                 .environment(pantryRepo)
                 .environment(recipeRepo)
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.colorScheme)
-                // Kick off a fetch the moment auth is confirmed — before any tab renders.
-                // Restarts whenever isAuthenticated flips (login / logout).
+                // Keep CustomerInfo in sync for the lifetime of the app.
+                .task {
+                    subscriptionManager.prefetchOfferings()
+                    await subscriptionManager.startListening()
+                }
+                // Sync RevenueCat user identity whenever Supabase auth changes.
                 .task(id: authManager.isAuthenticated) {
                     if authManager.isAuthenticated {
+                        // Link RC anonymous user to the Supabase user ID so purchase
+                        // history is always tied to the correct account.
+                        if let userId = authManager.currentSession?.user.id.uuidString {
+                            await subscriptionManager.logIn(userId: userId)
+                        }
                         await pantryRepo.fetchItems()
                         await recipeRepo.fetchAll()
-                        // Request permission on first sign-in, then reschedule.
-                        await scheduler.requestAuthorisation()
                         await scheduler.reschedule(items: pantryRepo.items)
                     } else {
+                        await subscriptionManager.logOut()
                         pantryRepo.clearCache()
                         recipeRepo.clearCache()
-                        // Clear notifications when signed out
                         await scheduler.reschedule(items: [])
                     }
                 }

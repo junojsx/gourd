@@ -2,7 +2,7 @@
 //  Screen1Hook.swift
 //  gourd
 //
-//  Onboarding Screen 1 — Hook: "Stop throwing money in the trash."
+//  Onboarding Screen 1 — Brand intro + value hook.
 //
 
 import SwiftUI
@@ -13,36 +13,34 @@ struct Screen1Hook: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 5, current: 0)
+            ProgressDots(total: 7, current: 0)
                 .padding(.top, 20)
-                .padding(.bottom, 20)
+                .padding(.bottom, 32)
 
-            // Hero illustration
-            ZStack {
-                Circle()
-                    .fill(Color.green800.opacity(0.6))
-                    .frame(width: 136, height: 136)
-                Text("\u{1F96C}")
-                    .font(.system(size: 72))
-                ZStack {
-                    Circle()
-                        .fill(Color.red400.opacity(0.85))
-                        .frame(width: 36, height: 36)
-                    Text("$$$")
-                        .font(.ftBody(10, weight: .semibold))
-                        .foregroundColor(.red200)
-                }
-                .offset(x: 52, y: -52)
+            // Wordmark hero
+            VStack(spacing: 10) {
+                Image("OnboardingLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 160, height: 160)
+                    .cornerRadius(32)
+
+                Text("gourdo")
+                    .font(.ftDisplay(42))
+                    .foregroundColor(.textPrimary)
+
+                Text("Know what's about to expire")
+                    .font(.ftBody(14))
+                    .foregroundColor(.textMuted)
             }
-            .frame(height: 170)
-            .padding(.bottom, 24)
+            .padding(.bottom, 32)
 
             // Stats row
             HStack(spacing: 10) {
                 StatChip(number: "$1,500", label: "wasted per household per year")
                 StatChip(number: "30%",    label: "of food bought never gets eaten")
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, 28)
 
             // Headline
             (Text("Stop throwing ")

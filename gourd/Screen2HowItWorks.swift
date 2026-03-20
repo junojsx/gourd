@@ -2,58 +2,52 @@
 //  Screen2HowItWorks.swift
 //  gourd
 //
-//  Onboarding Screen 2 — How It Works: Scan → Alert → Cook
+//  Onboarding Screen 2 — How It Works: three feature cards.
 //
 
 import SwiftUI
+
+// MARK: - Data
+
+private struct OBFeature {
+    let emoji: String
+    let title: String
+    let desc: String
+    let accentColor: Color
+}
+
+private let obFeatures: [OBFeature] = [
+    OBFeature(
+        emoji: "\u{1F4F7}",
+        title: "Scan it in seconds",
+        desc: "Barcode scan or snap the expiry date — OCR reads it automatically.",
+        accentColor: .green600
+    ),
+    OBFeature(
+        emoji: "\u{1F4CA}",
+        title: "Track freshness automatically",
+        desc: "38 produce types with smart storage windows built in. No manual entry.",
+        accentColor: .teal600
+    ),
+    OBFeature(
+        emoji: "\u{1F37D}\u{FE0F}",
+        title: "AI recipes from what's expiring",
+        desc: "Claude turns your about-to-expire ingredients into tonight's dinner.",
+        accentColor: .amber800
+    ),
+]
+
+// MARK: - Screen
 
 struct Screen2HowItWorks: View {
     let onNext: () -> Void
     let onSkip: () -> Void
 
-    private let steps = [
-        (emoji: "\u{1F4F7}", title: "Scan barcodes or snap the date",
-         desc: "OCR reads expiry dates from packaging automatically",
-         bg: Color.green600.opacity(0.3)),
-        (emoji: "\u{1F4CA}", title: "We track freshness for you",
-         desc: "38 produce types with smart storage windows built in",
-         bg: Color.teal600.opacity(0.4)),
-        (emoji: "\u{1F37D}\u{FE0F}", title: "AI recipes from what's about to expire",
-         desc: "Claude turns your expiring items into tonight's dinner",
-         bg: Color.amber800.opacity(0.4)),
-    ]
-
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 5, current: 1)
+            ProgressDots(total: 7, current: 1)
                 .padding(.top, 20)
-                .padding(.bottom, 20)
-
-            // Scan → Alert → Cook icon row
-            HStack(spacing: 0) {
-                ForEach(Array(zip(["\u{1F4F7}", "\u{1F514}", "\u{1F373}"], ["Scan", "Alert", "Cook"]).enumerated()),
-                        id: \.offset) { i, pair in
-                    VStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill([Color.green800.opacity(0.7),
-                                   Color.teal600.opacity(0.7),
-                                   Color.green600.opacity(0.5)][i])
-                            .frame(width: 70, height: 56)
-                            .overlay(Text(pair.0).font(.system(size: 28)))
-                        Text(pair.1)
-                            .font(.ftBody(10))
-                            .foregroundColor([Color.green200, Color.teal200, Color.green100][i])
-                    }
-                    if i < 2 {
-                        Spacer()
-                        Image(systemName: "arrow.right")
-                            .font(.caption)
-                            .foregroundColor(.green600)
-                        Spacer()
-                    }
-                }
-            }
-            .padding(.bottom, 20)
+                .padding(.bottom, 24)
 
             (Text("Your pantry, ")
                 .font(.ftDisplay(28))
@@ -67,38 +61,59 @@ struct Screen2HowItWorks: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 6)
 
-            Text("Three simple steps \u{2014} then your fridge runs itself.")
+            Text("Three things Gourdo does so you don\u{2019}t have to.")
                 .font(.ftBody(14))
                 .foregroundColor(.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 16)
+                .padding(.bottom, 20)
 
             VStack(spacing: 10) {
-                ForEach(steps, id: \.title) { step in
-                    HStack(alignment: .top, spacing: 12) {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(step.bg)
-                            .frame(width: 32, height: 32)
-                            .overlay(Text(step.emoji).font(.system(size: 14)))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(step.title)
-                                .font(.ftBody(13, weight: .semibold))
-                                .foregroundColor(.textPrimary.opacity(0.9))
-                            Text(step.desc)
-                                .font(.ftBody(11))
-                                .foregroundColor(.textMuted)
-                        }
-                        Spacer()
-                    }
+                ForEach(obFeatures, id: \.title) { feature in
+                    OBFeatureCard(feature: feature)
                 }
             }
             .padding(.bottom, 24)
 
             Spacer()
+
             OnboardingPrimaryButton(title: "Got it, show me more", action: onNext)
             SkipButton(action: onSkip)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 28)
+    }
+}
+
+// MARK: - Feature Card
+
+private struct OBFeatureCard: View {
+    let feature: OBFeature
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(feature.accentColor.opacity(0.35))
+                .frame(width: 48, height: 48)
+                .overlay(Text(feature.emoji).font(.system(size: 22)))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(feature.title)
+                    .font(.ftBody(13, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Text(feature.desc)
+                    .font(.ftBody(11))
+                    .foregroundColor(.textMuted)
+                    .lineSpacing(2)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.surfaceBase)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .cornerRadius(16)
     }
 }

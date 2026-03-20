@@ -32,6 +32,7 @@ struct ProgressDots: View {
 }
 
 // MARK: - PrimaryButton (Onboarding)
+// Spec: ftOlive bg · ftWarmBeige text · ZCOOL 17px · 54px height · radius-md (12px)
 
 struct OnboardingPrimaryButton: View {
     let title: String
@@ -40,17 +41,18 @@ struct OnboardingPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.ftBody(14, weight: .semibold))
-                .foregroundColor(.green900)
+                .font(.ftDisplay(17))
+                .foregroundColor(.appBackground)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .frame(height: 54)
                 .background(Color.green200)
-                .cornerRadius(14)
+                .cornerRadius(12)
         }
     }
 }
 
 // MARK: - SkipButton
+// Spec: transparent · ftPlaceholder text · Saira 14px · 42px height
 
 struct SkipButton: View {
     let action: () -> Void
@@ -58,10 +60,10 @@ struct SkipButton: View {
     var body: some View {
         Button(action: action) {
             Text("Skip")
-                .font(.ftBody(11))
-                .foregroundColor(.textDisabled)
+                .font(.ftBody(14))
+                .foregroundColor(.textMuted)
+                .frame(height: 42)
         }
-        .padding(.top, 8)
     }
 }
 

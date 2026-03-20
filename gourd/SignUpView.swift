@@ -99,9 +99,10 @@ struct SignUpView: View {
                 .font(.ftDisplay(32))
                 .foregroundStyle(Color.ftDeepForest)
 
-            Text("Reduce waste. Eat fresh.")
-                .font(.ftBody(18))
+            Text("Start saving money and stop wasting food.")
+                .font(.ftBody(16))
                 .foregroundStyle(Color.ftDeepForest50)
+                .multilineTextAlignment(.center)
         }
     }
 
