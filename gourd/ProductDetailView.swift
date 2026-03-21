@@ -142,7 +142,7 @@ struct ProductDetailView: View {
                 Text(item.category.displayName.uppercased())
                     .font(.ftBody(11, weight: .semibold))
                     .kerning(0.5)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color.ftDeepForest))
@@ -156,7 +156,7 @@ struct ProductDetailView: View {
                     Text(msg)
                         .font(.ftBody(13, weight: .semibold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(item.isUrgent ? .white : Color.ftWarmBeige)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(Capsule().fill(item.isUrgent ? Color.ftCrimson : Color.ftBronze))
@@ -344,7 +344,7 @@ struct ProductDetailView: View {
                 Text(isMarkingConsumed ? "Updating..." : consumeButtonLabel)
                     .font(.ftBody(16, weight: .semibold))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(quantity <= 0.5 ? .white : Color.ftWarmBeige)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(

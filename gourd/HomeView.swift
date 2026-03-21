@@ -42,7 +42,7 @@ struct HomeView: View {
                 Image(systemName: "fork.knife")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.ftDeepForest)
-                Text("Gourd")
+                Text("Gourdo")
                     .font(.ftBody(17, weight: .semibold))
                     .foregroundStyle(Color.ftDeepForest)
             }

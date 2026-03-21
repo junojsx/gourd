@@ -576,7 +576,7 @@ struct UpdatePasswordView: View {
                 }) {
                     Text(isSaved ? "Password Updated ✓" : "Update Password")
                         .font(.ftBody(16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isSaved ? .white : Color.ftWarmBeige)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
@@ -798,7 +798,7 @@ struct ManageSubscriptionView: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(isPro ? "Gourd Pro" : "Free Plan")
+                Text(isPro ? "Gourdo Pro" : "Free Plan")
                     .font(.ftBody(16, weight: .bold))
                     .foregroundStyle(Color.ftDeepForest)
                 Text(isPro ? "All features unlocked" : "Limited features")
@@ -1356,7 +1356,7 @@ struct AlertTimePicker: View {
             Button(action: { dismiss() }) {
                 Text("Done")
                     .font(.ftBody(16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.ftWarmBeige)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.ftDeepForest))

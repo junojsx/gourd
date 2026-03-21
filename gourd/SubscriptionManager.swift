@@ -77,6 +77,7 @@ final class SubscriptionManager {
     @MainActor
     func logIn(userId: String) async {
         lastError = nil
+        isLoadingInitial = true
         do {
             let (info, _) = try await Purchases.shared.logIn(userId)
             customerInfo = info
