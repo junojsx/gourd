@@ -136,7 +136,7 @@ final class ExpiryNotificationScheduler: NSObject {
     // MARK: - Request Builder
 
     private func makeRequest(for window: ExpiryWindow, items: [PantryItem], prefs: NotificationPrefs) -> UNNotificationRequest? {
-        guard fireDate(for: window, prefs: prefs) != nil else { return nil }
+        guard let fire = fireDate(for: window, prefs: prefs) else { return nil }
 
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = "COOK_NOW"
@@ -159,7 +159,7 @@ final class ExpiryNotificationScheduler: NSObject {
             return nil  // "all" is not a schedulable window
         }
 
-        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate(for: window, prefs: prefs)!)
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         let id = "\(AppLimits.idPrefix)\(window.rawValue)"
         return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
@@ -180,24 +180,27 @@ final class ExpiryNotificationScheduler: NSObject {
         }
     }
 
-    /// Returns the Date at which to fire the notification for this window.
-    /// Fires at the user's configured alert time on the relevant expiry day.
+    /// Returns the trigger for this window's notification.
+    /// Fires at the user's configured alert time today (since we already filtered items by current
+    /// daysUntilExpiry). If today's alert time has already passed, fires in 5 seconds so items
+    /// added or updated late in the day still trigger a prompt.
     private func fireDate(for window: ExpiryWindow, prefs: NotificationPrefs) -> Date? {
-        guard let maxDays = window.maxDays else { return nil }
+        guard window != .all else { return nil }
         var comps = DateComponents()
         comps.hour   = prefs.alertHour
         comps.minute = prefs.alertMinute
         comps.second = 0
 
         let today = Calendar.current.startOfDay(for: .now)
-        guard let targetDay = Calendar.current.date(byAdding: .day, value: maxDays, to: today) else { return nil }
-        let targetComps = Calendar.current.dateComponents([.year, .month, .day], from: targetDay)
-        comps.year  = targetComps.year
-        comps.month = targetComps.month
-        comps.day   = targetComps.day
+        let todayComps = Calendar.current.dateComponents([.year, .month, .day], from: today)
+        comps.year  = todayComps.year
+        comps.month = todayComps.month
+        comps.day   = todayComps.day
 
-        let fireDate = Calendar.current.date(from: comps) ?? Date()
-        return fireDate > Date() ? fireDate : nil
+        let scheduled = Calendar.current.date(from: comps) ?? Date()
+        // If today's alert time has passed, return a near-future date so the notification
+        // still fires (e.g. item was just added after 9 AM on its expiry day).
+        return scheduled > Date() ? scheduled : Date(timeIntervalSinceNow: 5)
     }
 }
 
