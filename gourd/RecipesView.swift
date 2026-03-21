@@ -421,6 +421,7 @@ struct CreateRecipeView: View {
 
     @Environment(PantryRepository.self) private var repo
     @Environment(RecipeRepository.self) private var recipeRepo
+    @Environment(SubscriptionManager.self) private var subscriptions
     @State private var selectedIDs:     Set<UUID> = []
     @State private var searchText       = ""
     @State private var isGenerating     = false
@@ -445,8 +446,11 @@ struct CreateRecipeView: View {
     }
 
     private func generateRecipe() {
-        guard RecipeRateLimiter.canGenerate else {
-            generationError = "Monthly generation limit reached. Resets at the start of next month."
+        let isPro = subscriptions.isProSubscriber
+        guard RecipeRateLimiter.canGenerate(isPro: isPro) else {
+            generationError = isPro
+                ? "Monthly generation limit reached. Resets at the start of next month."
+                : "Weekly limit reached (2 recipes). Resets Monday."
             return
         }
         isGenerating = true
@@ -454,7 +458,7 @@ struct CreateRecipeView: View {
         Task {
             do {
                 let result = try await RecipeService.generate(from: selectedItems)
-                RecipeRateLimiter.recordGeneration()
+                RecipeRateLimiter.recordGeneration(isPro: isPro)
                 generatedRecipe = result.recipe
                 navigateToResult = true
             } catch {
@@ -539,7 +543,7 @@ struct CreateRecipeView: View {
                     },
                     onRegenerate: {
                         let result = try await RecipeService.generate(from: selectedItems)
-                        RecipeRateLimiter.recordGeneration()
+                        RecipeRateLimiter.recordGeneration(isPro: subscriptions.isProSubscriber)
                         generatedRecipe = result.recipe
                         return result.recipe
                     }
@@ -718,11 +722,24 @@ struct CreateRecipeView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Rate limit label
+
+    private var remainingLabel: String {
+        let isPro = subscriptions.isProSubscriber
+        let left  = RecipeRateLimiter.remaining(isPro: isPro)
+        let total = RecipeRateLimiter.limit(isPro: isPro)
+        if isPro {
+            return "\(left) of \(total) generations left this month"
+        } else {
+            return "\(left) of \(total) generations left this week"
+        }
+    }
+
     // MARK: - Generate Button
 
     private var generateButton: some View {
         VStack(spacing: 0) {
-            Text("\(RecipeRateLimiter.remaining) of \(RecipeRateLimiter.maxPerMonth) generations left this month")
+            Text(remainingLabel)
                 .font(.ftBody(11))
                 .foregroundStyle(Color.ftDeepForest.opacity(0.45))
                 .padding(.top, 12)
@@ -742,10 +759,10 @@ struct CreateRecipeView: View {
                         .padding(.vertical, 5)
                         .background(Capsule().fill(Color.ftWarmBeige))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.ftWarmBeige)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(RecipeRateLimiter.canGenerate ? Color.ftDeepForest : Color.ftDeepForest.opacity(0.35))
+                .background(RecipeRateLimiter.canGenerate(isPro: subscriptions.isProSubscriber) ? Color.ftDeepForest : Color.ftDeepForest.opacity(0.35))
             }
         }
         .background(Color.ftWarmBeige)

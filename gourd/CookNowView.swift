@@ -12,6 +12,7 @@ struct CookNowView: View {
 
     @Environment(PantryRepository.self) private var repo
     @Environment(RecipeRepository.self) private var recipeRepo
+    @Environment(SubscriptionManager.self) private var subscriptions
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedIds: Set<UUID> = []
@@ -135,7 +136,7 @@ struct CookNowView: View {
                     },
                     onRegenerate: {
                         let result = try await RecipeService.generate(from: selectedItems)
-                        RecipeRateLimiter.recordGeneration()
+                        RecipeRateLimiter.recordGeneration(isPro: subscriptions.isProSubscriber)
                         generatedRecipe = result.recipe
                         return result.recipe
                     }
@@ -297,8 +298,11 @@ struct CookNowView: View {
     }
 
     private func generateRecipe() {
-        guard RecipeRateLimiter.canGenerate else {
-            generationError = "Monthly generation limit reached. Resets at the start of next month."
+        let isPro = subscriptions.isProSubscriber
+        guard RecipeRateLimiter.canGenerate(isPro: isPro) else {
+            generationError = isPro
+                ? "Monthly generation limit reached. Resets at the start of next month."
+                : "Weekly limit reached (2 recipes). Resets Monday."
             return
         }
         isGenerating = true
@@ -306,7 +310,7 @@ struct CookNowView: View {
         Task {
             do {
                 let result = try await RecipeService.generate(from: selectedItems)
-                RecipeRateLimiter.recordGeneration()
+                RecipeRateLimiter.recordGeneration(isPro: isPro)
                 generatedRecipe = result.recipe
                 navigateToResult = true
             } catch {
