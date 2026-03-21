@@ -676,7 +676,8 @@ struct ManageSubscriptionView: View {
     private var isPro: Bool { subscriptions.isProSubscriber }
 
     private var activeEntitlement: EntitlementInfo? {
-        subscriptions.customerInfo?.entitlements[SubscriptionManager.Entitlement.gourdoPro]
+        let entitlement = subscriptions.customerInfo?.entitlements[SubscriptionManager.Entitlement.gourdoPro]
+        return entitlement?.isActive == true ? entitlement : nil
     }
 
     private let features: [(String, Bool, Bool)] = [
@@ -749,7 +750,8 @@ struct ManageSubscriptionView: View {
                 .disabled(isPurchasing || selectedPackage == nil)
                 .opacity(isPurchasing ? 0.7 : 1)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 90)
                 .background(Color.ftWarmBeige)
             }
         }
@@ -835,7 +837,7 @@ struct ManageSubscriptionView: View {
     }
 
     private var statusLabel: String {
-        guard let entitlement = activeEntitlement else { return "FREE" }
+        guard let entitlement = activeEntitlement, entitlement.isActive else { return "FREE" }
         if entitlement.periodType == .trial { return "TRIAL" }
         return "ACTIVE"
     }

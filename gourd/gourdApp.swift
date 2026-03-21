@@ -71,9 +71,9 @@ struct gourdApp: App {
 
     // MARK: - Deep Link Handler
 
-    /// Handles `freshtrack://cook-now` and `freshtrack://cook-now?window=3day&ids=uuid1,uuid2`
+    /// Handles `gourdo://cook-now` and `gourdo://cook-now?window=3day&ids=uuid1,uuid2`
     private func handleDeepLink(_ url: URL) {
-        guard url.scheme == "freshtrack", url.host == "cook-now" else { return }
+        guard url.scheme == "gourdo", url.host == "cook-now" else { return }
         let params = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         cookNowFilter = CookNowFilter(from: params)
         showCookNow = true

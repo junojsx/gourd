@@ -13,6 +13,7 @@ import SwiftUI
 
 struct PaywallScreen: View {
     @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(\.dismiss) private var dismiss
     @State private var offering: Offering?
     @State private var isLoading = true
 
@@ -45,6 +46,17 @@ struct PaywallScreen: View {
         ZStack {
             Color.appBackground.ignoresSafeArea()
             VStack(spacing: 32) {
+                HStack {
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(Color.textMuted)
+                            .padding(12)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
                 Spacer()
 
                 VStack(spacing: 12) {

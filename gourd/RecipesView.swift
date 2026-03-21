@@ -453,8 +453,7 @@ struct CreateRecipeView: View {
         generationError = nil
         Task {
             do {
-                let existingTitles = recipeRepo.recipes.map(\.title)
-                let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
+                let result = try await RecipeService.generate(from: selectedItems)
                 RecipeRateLimiter.recordGeneration()
                 generatedRecipe = result.recipe
                 navigateToResult = true
@@ -539,8 +538,7 @@ struct CreateRecipeView: View {
                         navigateToResult = false
                     },
                     onRegenerate: {
-                        let existingTitles = recipeRepo.recipes.map(\.title) + [recipe.title]
-                        let result = try await RecipeService.generate(from: selectedItems, existingRecipeTitles: existingTitles)
+                        let result = try await RecipeService.generate(from: selectedItems)
                         RecipeRateLimiter.recordGeneration()
                         generatedRecipe = result.recipe
                         return result.recipe

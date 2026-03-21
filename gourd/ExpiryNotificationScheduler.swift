@@ -142,7 +142,7 @@ final class ExpiryNotificationScheduler: NSObject {
         content.categoryIdentifier = "COOK_NOW"
         content.sound = .default
         content.userInfo = [
-            "deepLink": "freshtrack://cook-now?window=\(window.rawValue)"
+            "deepLink": "gourdo://cook-now?window=\(window.rawValue)"
         ]
 
         switch window {

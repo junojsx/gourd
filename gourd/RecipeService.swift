@@ -35,7 +35,7 @@ struct RecipeGenerationResult {
 
 struct RecipeService {
 
-    static func generate(from items: [PantryItem], existingRecipeTitles: [String] = []) async throws -> RecipeGenerationResult {
+    static func generate(from items: [PantryItem]) async throws -> RecipeGenerationResult {
         guard !items.isEmpty else { throw RecipeServiceError.noItems }
 
         // Build ingredient payload for the Edge Function
@@ -48,7 +48,6 @@ struct RecipeService {
 
         struct RequestBody: Encodable {
             let ingredients: [Ingredient]
-            let existingRecipeTitles: [String]
         }
 
         let ingredients = items.map { item in
@@ -60,7 +59,7 @@ struct RecipeService {
             )
         }
 
-        let body = RequestBody(ingredients: ingredients, existingRecipeTitles: existingRecipeTitles)
+        let body = RequestBody(ingredients: ingredients)
 
         // Call the Edge Function via Supabase client (auth header sent automatically)
         let response: EdgeFunctionResponse = try await supabase.functions.invoke(

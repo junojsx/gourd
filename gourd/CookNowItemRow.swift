@@ -84,7 +84,7 @@ struct CookNowItemRow: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isSelected
                           ? Color.ftOlive.opacity(0.06)
-                          : Color.white.opacity(0.8))
+                          : Color.ftCardBg.opacity(0.8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(

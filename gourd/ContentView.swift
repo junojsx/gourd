@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasSeenProWelcome") private var hasSeenProWelcome = false
     @State private var startWithSignUp = true
+    @State private var paywallDismissed = false
 
     var body: some View {
         if !hasSeenWelcome {
@@ -64,8 +65,14 @@ struct ContentView: View {
                         MainTabView()
                     }
                 } else {
-                    // Step 4: Not subscribed — hard paywall
-                    PaywallScreen()
+                    // Step 4: Show home; paywall floats on top as a cover until dismissed
+                    MainTabView()
+                        .fullScreenCover(isPresented: Binding(
+                            get: { !paywallDismissed },
+                            set: { if !$0 { paywallDismissed = true } }
+                        )) {
+                            PaywallScreen()
+                        }
                 }
             }
         }
