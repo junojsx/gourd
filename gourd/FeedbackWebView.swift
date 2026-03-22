@@ -2,23 +2,25 @@
 //  FeedbackWebView.swift
 //  gourd
 //
-//  Simple UIViewRepresentable wrapping WKWebView for in-app browsing.
+//  UIViewControllerRepresentable wrapping SFSafariViewController for
+//  reliable in-app browsing — handles redirects, cookies, and modern
+//  web features the same way Safari does.
 //
 
+import SafariServices
 import SwiftUI
-import WebKit
 
-struct FeedbackWebView: UIViewRepresentable {
+struct FeedbackWebView: UIViewControllerRepresentable {
 
     let url: URL
 
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView(frame: .zero)
-        webView.backgroundColor = UIColor(Color.ftWarmBeige)
-        webView.isOpaque = false
-        webView.load(URLRequest(url: url))
-        return webView
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        let vc = SFSafariViewController(url: url, configuration: config)
+        vc.preferredControlTintColor = UIColor(Color.ftOlive)
+        return vc
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }

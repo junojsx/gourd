@@ -27,6 +27,11 @@ struct ScannedProduct {
 // MARK: - Open Food Facts Lookup
 
 private func lookupBarcode(_ barcode: String) async throws -> ScannedProduct? {
+    // Cache hit — return immediately, no network call
+    if let cached = BarcodeCache.get(barcode) {
+        return cached
+    }
+
     guard let url = URL(string: "https://world.openfoodfacts.org/api/v0/product/\(barcode).json") else {
         return nil
     }
@@ -40,7 +45,9 @@ private func lookupBarcode(_ barcode: String) async throws -> ScannedProduct? {
     for attempt in 1...3 {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
-            return try parseOFFResponse(data: data, barcode: barcode)
+            let product = try parseOFFResponse(data: data, barcode: barcode)
+            if let product { BarcodeCache.set(product) }
+            return product
         } catch let error as NSError where retryableCodes.contains(error.code) {
             lastError = error
             if attempt < 3 {

@@ -32,6 +32,8 @@ struct gourdApp: App {
                 // Configure RevenueCat once the app scene is ready,
                 // then start listening for subscription changes.
                 .task {
+                    BarcodeCache.evictExpired()
+
                     // PostHog — analytics
                     let phConfig = PostHogConfig(
                         apiKey: "phc_JZ9b5IkRNUgNzoEiPXw0gg9suRmmGJ83ZMlWlEXfz0K",
