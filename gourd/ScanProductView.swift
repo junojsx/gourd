@@ -60,6 +60,25 @@ private func lookupBarcode(_ barcode: String) async throws -> ScannedProduct? {
     throw lastError
 }
 
+private enum ScanError: Error {
+    case nonFoodItem
+}
+
+private func isNonFoodTag(_ tag: String) -> Bool {
+    let blocked = [
+        "cosmetic", "beauty", "hygiene", "toiletrie",
+        "deodorant", "personal-care", "body-care",
+        "health-and-beauty", "perfume", "fragrance",
+        "shampoo", "conditioner", "hair-care",
+        "toothpaste", "oral-care",
+        "skincare", "face-care", "face-cream", "sunscreen",
+        "non-food", "non-alimentaire",
+        "household", "cleaning-agent", "detergent",
+        "pharmaceutical"
+    ]
+    return blocked.contains(where: { tag.contains($0) })
+}
+
 private func parseOFFResponse(data: Data, barcode: String) throws -> ScannedProduct? {
 
     struct OFFResponse: Decodable {
@@ -79,6 +98,11 @@ private func parseOFFResponse(data: Data, barcode: String) throws -> ScannedProd
           let p = response.product,
           let name = p.product_name, !name.isEmpty
     else { return nil }
+
+    let tags = (p.categories_tags ?? []).map { $0.lowercased() }
+    if tags.contains(where: isNonFoodTag) {
+        throw ScanError.nonFoodItem
+    }
 
     // Pick first English category tag
     let category = p.categories_tags?
@@ -102,12 +126,14 @@ private enum ScanState: Equatable {
     case loading
     case found(ScannedProduct)
     case notFound
+    case nonFood
     case denied
 
     static func == (lhs: ScanState, rhs: ScanState) -> Bool {
         switch (lhs, rhs) {
         case (.requesting, .requesting), (.scanning, .scanning),
-             (.loading, .loading), (.notFound, .notFound), (.denied, .denied): return true
+             (.loading, .loading), (.notFound, .notFound),
+             (.nonFood, .nonFood), (.denied, .denied): return true
         case (.found(let a), .found(let b)): return a.barcode == b.barcode
         default: return false
         }
@@ -201,6 +227,8 @@ struct ScanProductView: View {
                     AnalyticsService.barcodeScanned(success: false)
                     state = .notFound
                 }
+            } catch ScanError.nonFoodItem {
+                state = .nonFood
             } catch {
                 AnalyticsService.barcodeScanned(success: false)
                 state = .notFound
@@ -306,6 +334,10 @@ struct ScanProductView: View {
 
         case .notFound:
             notFoundCard
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+
+        case .nonFood:
+            nonFoodCard
                 .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .denied:
@@ -509,6 +541,50 @@ struct ScanProductView: View {
                                 )
                         )
                 }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 100)
+        }
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 24).fill(Color.ftWarmBeige))
+    }
+
+    // MARK: - Non-Food Card
+
+    private var nonFoodCard: some View {
+        VStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.ftSoftClay)
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+
+            Image(systemName: "cart.badge.minus")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.ftDeepForest.opacity(0.25))
+
+            VStack(spacing: 4) {
+                Text("Not a food item")
+                    .font(.ftBody(16, weight: .semibold))
+                    .foregroundStyle(Color.ftDeepForest)
+                Text("This product doesn't belong in your pantry.")
+                    .font(.ftBody(13))
+                    .foregroundStyle(Color.ftDeepForest50)
+            }
+
+            Button(action: scanAgain) {
+                Text("Scan Again")
+                    .font(.ftBody(15, weight: .semibold))
+                    .foregroundStyle(Color.ftDeepForest)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.ftCardBg.opacity(0.9))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color.ftSoftClay, lineWidth: 1)
+                            )
+                    )
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 100)

@@ -46,6 +46,7 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
     case frozen
     case canned
     case beverage
+    case leftovers
     case other
 
     var displayName: String {
@@ -56,8 +57,9 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
         case .bakery:   return "Bakery"
         case .frozen:   return "Frozen"
         case .canned:   return "Canned"
-        case .beverage: return "Beverages"
-        case .other:    return "Other"
+        case .beverage:   return "Beverages"
+        case .leftovers:  return "Leftovers"
+        case .other:      return "Other"
         }
     }
 
@@ -69,8 +71,9 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
         case .bakery:   return "birthday.cake.fill"
         case .frozen:   return "snowflake"
         case .canned:   return "cylinder.fill"
-        case .beverage: return "wineglass.fill"
-        case .other:    return "shippingbox.fill"
+        case .beverage:  return "wineglass.fill"
+        case .leftovers: return "takeoutbag.and.cup.and.straw.fill"
+        case .other:     return "shippingbox.fill"
         }
     }
 
@@ -82,8 +85,9 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
         case .bakery:   return Color(hex: "F5E6C8")
         case .frozen:   return Color(hex: "B3E5FC")
         case .canned:   return Color(hex: "F5F0E8")
-        case .beverage: return Color(hex: "D4E8D4")
-        case .other:    return Color.ftSoftClay.opacity(0.3)
+        case .beverage:  return Color(hex: "D4E8D4")
+        case .leftovers: return Color(hex: "F5E6C8")
+        case .other:     return Color.ftSoftClay.opacity(0.3)
         }
     }
 
@@ -144,6 +148,9 @@ enum ItemCategory: String, Codable, CaseIterable, Sendable {
              lower.contains("parsley") || lower.contains("produce") || lower.contains("fruit") ||
              lower.contains("vegetable") || lower.contains("veggie") || lower.contains("berry"):
             self = .produce
+        case lower.contains("leftover") || lower.contains("leftovers") ||
+             lower.contains("meal prep") || lower.contains("cooked"):
+            self = .leftovers
         default:
             self = .other
         }

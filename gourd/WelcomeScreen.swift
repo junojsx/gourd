@@ -27,10 +27,12 @@ struct WelcomeScreen: View {
                         .cornerRadius(28)
 
                     // "gour" white + "do" green
-                    (Text("gour")
-                        .foregroundColor(.textPrimary)
-                    + Text("do")
-                        .foregroundColor(.green200))
+                    HStack(spacing: 0) {
+                        Text("gour")
+                            .foregroundColor(.textPrimary)
+                        Text("do")
+                            .foregroundColor(.green200)
+                    }
                     .font(.ftDisplay(42))
 
                     Text("Stop throwing food away. Know\nwhat to eat before it\u{2019}s too late.")

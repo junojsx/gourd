@@ -56,6 +56,8 @@ struct ProductDetailView: View {
         case .other:
             return ("shippingbox.fill", "Store properly",
                     "Follow the manufacturer's storage instructions to ensure maximum freshness and safety.")
+        case .leftovers:
+            <#code#>
         }
     }
 

@@ -36,7 +36,7 @@ struct gourdApp: App {
 
                     // PostHog — analytics
                     let phConfig = PostHogConfig(
-                        apiKey: "phc_JZ9b5IkRNUgNzoEiPXw0gg9suRmmGJ83ZMlWlEXfz0K",
+                        apiKey: Secrets.postHogAPIKey,
                         host: "https://us.i.posthog.com"
                     )
                     phConfig.captureApplicationLifecycleEvents = true
@@ -49,7 +49,7 @@ struct gourdApp: App {
                     #if DEBUG
                     Purchases.logLevel = .debug
                     #endif
-                    Purchases.configure(withAPIKey: "appl_rRgNlNskAfAaMNrZanEIeiZWtiU")
+                    Purchases.configure(withAPIKey: Secrets.revenueCatAPIKey)
                     subscriptionManager.prefetchOfferings()
                     await subscriptionManager.startListening()
                 }
