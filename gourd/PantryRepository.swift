@@ -92,6 +92,7 @@ final class PantryRepository {
         insertSorted(item)
         persistCache()
         await ExpiryNotificationScheduler.shared.reschedule(items: items)
+        AnalyticsService.itemAdded(method: item.addedVia, category: item.category)
         return item
     }
 
@@ -124,6 +125,7 @@ final class PantryRepository {
         items.removeAll { $0.id == id }
         persistCache()
         await ExpiryNotificationScheduler.shared.reschedule(items: items)
+        AnalyticsService.itemDeleted()
     }
 
     // MARK: - Mark Consumed
@@ -137,6 +139,7 @@ final class PantryRepository {
                 case consumedAt = "consumed_at"
             }
         }
+        let consumed = items.first { $0.id == id }
         let now = ISO8601DateFormatter().string(from: Date())
         try await supabase
             .from("pantry_items")
@@ -146,6 +149,9 @@ final class PantryRepository {
         items.removeAll { $0.id == id }
         persistCache()
         await ExpiryNotificationScheduler.shared.reschedule(items: items)
+        if let consumed {
+            AnalyticsService.itemConsumed(daysUntilExpiry: consumed.daysUntilExpiry, category: consumed.category)
+        }
     }
 
     // MARK: - Build Insert

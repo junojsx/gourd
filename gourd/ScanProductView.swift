@@ -188,11 +188,14 @@ struct ScanProductView: View {
         Task {
             do {
                 if let product = try await lookupBarcode(barcode) {
+                    AnalyticsService.barcodeScanned(success: true)
                     state = .found(product)
                 } else {
+                    AnalyticsService.barcodeScanned(success: false)
                     state = .notFound
                 }
             } catch {
+                AnalyticsService.barcodeScanned(success: false)
                 state = .notFound
             }
         }

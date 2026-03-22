@@ -3,6 +3,7 @@
 //  gourd
 //
 
+import PostHog
 import RevenueCat
 import Supabase
 import SwiftUI
@@ -31,6 +32,18 @@ struct gourdApp: App {
                 // Configure RevenueCat once the app scene is ready,
                 // then start listening for subscription changes.
                 .task {
+                    // PostHog — analytics
+                    let phConfig = PostHogConfig(
+                        apiKey: "phc_JZ9b5IkRNUgNzoEiPXw0gg9suRmmGJ83ZMlWlEXfz0K",
+                        host: "https://us.i.posthog.com"
+                    )
+                    phConfig.captureApplicationLifecycleEvents = true
+                    #if DEBUG
+                    phConfig.optOut = true   // keep dev events out of production data
+                    #endif
+                    PostHogSDK.shared.setup(phConfig)
+
+                    // RevenueCat
                     #if DEBUG
                     Purchases.logLevel = .debug
                     #endif
@@ -45,6 +58,18 @@ struct gourdApp: App {
                         // history is always tied to the correct account.
                         if let userId = authManager.currentSession?.user.id.uuidString {
                             await subscriptionManager.logIn(userId: userId)
+                            // Identify the user in PostHog and attach super-properties
+                            PostHogSDK.shared.identify(
+                                userId,
+                                userProperties: [
+                                    "email": authManager.currentSession?.user.email ?? "",
+                                    "tier": subscriptionManager.isProSubscriber ? "pro" : "free"
+                                ]
+                            )
+                            PostHogSDK.shared.register([
+                                "platform": "ios",
+                                "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+                            ])
                         }
                         await pantryRepo.fetchItems()
                         await recipeRepo.fetchAll()
@@ -54,6 +79,7 @@ struct gourdApp: App {
                         pantryRepo.clearCache()
                         recipeRepo.clearCache()
                         await scheduler.reschedule(items: [])
+                        PostHogSDK.shared.reset()
                     }
                 }
                 .onOpenURL { url in
@@ -77,5 +103,6 @@ struct gourdApp: App {
         let params = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         cookNowFilter = CookNowFilter(from: params)
         showCookNow = true
+        AnalyticsService.notificationTapped(type: "cook_now")
     }
 }

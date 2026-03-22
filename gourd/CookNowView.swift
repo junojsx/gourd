@@ -300,6 +300,7 @@ struct CookNowView: View {
     private func generateRecipe() {
         let isPro = subscriptions.isProSubscriber
         guard RecipeRateLimiter.canGenerate(isPro: isPro) else {
+            AnalyticsService.recipeLimitHit()
             generationError = isPro
                 ? "Monthly generation limit reached. Resets at the start of next month."
                 : "Weekly limit reached (2 recipes). Resets Monday."
@@ -311,6 +312,7 @@ struct CookNowView: View {
             do {
                 let result = try await RecipeService.generate(from: selectedItems)
                 RecipeRateLimiter.recordGeneration(isPro: isPro)
+                AnalyticsService.recipeGenerated(ingredientCount: selectedItems.count, cacheHit: false)
                 generatedRecipe = result.recipe
                 navigateToResult = true
             } catch {

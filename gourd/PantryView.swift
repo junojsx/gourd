@@ -79,6 +79,10 @@ struct PantryView: View {
             .padding(.bottom, 98)
         }
         .task { await repo.fetchItems() }
+        .onAppear {
+            let expired = repo.items.filter { ($0.daysUntilExpiry ?? 1) < 0 }.count
+            AnalyticsService.pantryViewed(itemCount: repo.items.count, expiredCount: expired)
+        }
         .sheet(isPresented: $showManualAdd) {
             ManualAddItemView()
                 .environment(repo)

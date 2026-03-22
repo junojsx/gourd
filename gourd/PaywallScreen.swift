@@ -38,6 +38,9 @@ struct PaywallScreen: View {
         .task {
             await loadOffering()
         }
+        .onAppear {
+            AnalyticsService.paywallShown(trigger: .proFeature)
+        }
     }
 
     // MARK: - Fallback
@@ -137,6 +140,12 @@ struct PaywallScreen: View {
     private func purchase() async {
         guard let pkg = offering?.availablePackages.first else { return }
         if let result = try? await Purchases.shared.purchase(package: pkg) {
+            let isTrial = result.customerInfo
+                .entitlements[SubscriptionManager.Entitlement.gourdoPro]?.periodType == .trial
+            AnalyticsService.subscriptionStarted(
+                productId: pkg.storeProduct.productIdentifier,
+                isTrial: isTrial
+            )
             subscriptions.update(result.customerInfo)
         }
     }

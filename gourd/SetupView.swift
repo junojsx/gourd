@@ -16,6 +16,7 @@ struct SetupView: View {
     @State private var prefs = NotificationPrefs.shared
     @State private var systemAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var showTimePicker = false
+    @State private var showFeedback = false
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,7 @@ struct SetupView: View {
                             appearanceSection
                             accountSection
                             notificationsSection
+                            supportSection
                             signOutSection
                             dangerSection
                         }
@@ -45,6 +47,9 @@ struct SetupView: View {
         .sheet(isPresented: $showTimePicker) {
             AlertTimePicker(hour: $prefs.alertHour, minute: $prefs.alertMinute)
                 .presentationDetents([.height(320)])
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackSheetView()
         }
     }
 
@@ -348,6 +353,27 @@ struct SetupView: View {
                 .tint(Color.ftOlive)
         }
         .padding(14)
+    }
+
+    // MARK: - Support Section
+
+    private var supportSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("SUPPORT")
+
+            Button {
+                showFeedback = true
+            } label: {
+                settingsRow(
+                    icon: "bubble.and.pencil",
+                    iconBg: Color.ftOlive,
+                    title: "Share Feedback",
+                    subtitle: "Suggest features or report issues"
+                )
+            }
+            .buttonStyle(.plain)
+            .background(cardBackground)
+        }
     }
 
     // MARK: - Sign Out Section
