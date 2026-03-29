@@ -19,7 +19,7 @@ struct Screen7SignUpCTA: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 6)
+            ProgressDots(total: 10, current: 9)
                 .padding(.top, 20)
                 .padding(.bottom, 32)
 

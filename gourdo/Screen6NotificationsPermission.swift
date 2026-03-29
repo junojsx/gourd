@@ -15,7 +15,7 @@ struct Screen6NotificationsPermission: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 5)
+            ProgressDots(total: 10, current: 5)
                 .padding(.top, 20)
                 .padding(.bottom, 32)
 
@@ -36,15 +36,12 @@ struct Screen6NotificationsPermission: View {
             .padding(.bottom, 28)
 
             // Headline
-            (Text("Get nudged before\nthings ")
+            Text("Get nudged before\nthings \(Text("go bad.").foregroundStyle(Color.green100))")
+                .foregroundStyle(Color.textPrimary)
                 .font(.ftDisplay(28))
-                .foregroundColor(.textPrimary)
-            + Text("go bad.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100))
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 14)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 14)
 
             Text("We\u{2019}ll send a heads-up 3 days out, 1 day out, and the morning of \u{2014} so you always have time to cook something great.")
                 .font(.ftBody(14))
@@ -128,7 +125,7 @@ struct Screen6NotificationsPermission: View {
     private func requestPermission() {
         isRequesting = true
         Task {
-            try? await UNUserNotificationCenter.current()
+            _ = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
             await MainActor.run {
                 isRequesting = false

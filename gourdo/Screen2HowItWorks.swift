@@ -45,19 +45,13 @@ struct Screen2HowItWorks: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 1)
+            ProgressDots(total: 10, current: 1)
                 .padding(.top, 20)
                 .padding(.bottom, 24)
 
-            (Text("Your pantry, ")
+            Text("Your pantry, \(Text("always").foregroundColor(.green100)) fresh.")
                 .font(.ftDisplay(28))
                 .foregroundColor(.textPrimary)
-            + Text("always")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100)
-            + Text(" fresh.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.textPrimary))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 6)
 

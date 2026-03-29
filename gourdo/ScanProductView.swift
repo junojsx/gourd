@@ -79,6 +79,7 @@ private func isNonFoodTag(_ tag: String) -> Bool {
     return blocked.contains(where: { tag.contains($0) })
 }
 
+
 private func parseOFFResponse(data: Data, barcode: String) throws -> ScannedProduct? {
 
     struct OFFResponse: Decodable {
@@ -100,6 +101,7 @@ private func parseOFFResponse(data: Data, barcode: String) throws -> ScannedProd
     else { return nil }
 
     let tags = (p.categories_tags ?? []).map { $0.lowercased() }
+
     if tags.contains(where: isNonFoodTag) {
         throw ScanError.nonFoodItem
     }
@@ -153,7 +155,8 @@ struct ScanProductView: View {
     @State private var isSaving         = false
     @State private var saveError: String?
     @State private var expirationDate   = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-    @State private var showManualAdd    = false
+    @State private var showManualAdd        = false
+    @State private var showDatePickerHint   = false
 
     var body: some View {
         ZStack {
@@ -216,6 +219,7 @@ struct ScanProductView: View {
     private func handleBarcode(_ barcode: String) {
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
+        isPaused = true
         state = .loading
 
         Task {
@@ -223,6 +227,10 @@ struct ScanProductView: View {
                 if let product = try await lookupBarcode(barcode) {
                     AnalyticsService.barcodeScanned(success: true)
                     state = .found(product)
+                    Task {
+                        try? await Task.sleep(nanoseconds: 700_000_000)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) { showDatePickerHint = true }
+                    }
                 } else {
                     AnalyticsService.barcodeScanned(success: false)
                     state = .notFound
@@ -412,6 +420,30 @@ struct ScanProductView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 14)
+            .overlay(alignment: .topTrailing) {
+                if showDatePickerHint {
+                    VStack(spacing: 0) {
+                        Text("Set the expiration date")
+                            .font(.ftBody(12, weight: .semibold))
+                            .foregroundStyle(Color.ftWarmBeige)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.ftPrimaryBg)
+                            )
+                        TooltipArrow()
+                            .fill(Color.ftPrimaryBg)
+                            .frame(width: 12, height: 7)
+                    }
+                    .padding(.trailing, 20)
+                    .offset(y: -50)
+                    .transition(.scale(scale: 0.85, anchor: .bottom).combined(with: .opacity))
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.2)) { showDatePickerHint = false }
+                    }
+                }
+            }
 
             // Action buttons
             HStack(spacing: 12) {
@@ -631,6 +663,7 @@ struct ScanProductView: View {
         addedSuccess = false
         isSaving = false
         saveError = nil
+        showDatePickerHint = false
         expirationDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         isPaused = false
         state = .scanning
@@ -672,6 +705,19 @@ private struct ScannerFrame: Shape {
         p.addQuadCurve(to: CGPoint(x: l, y: b - radius), control: CGPoint(x: l, y: b))
         p.addLine(to: CGPoint(x: l, y: b - cl))
 
+        return p
+    }
+}
+
+// MARK: - Tooltip Arrow Shape
+
+private struct TooltipArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.closeSubpath()
         return p
     }
 }

@@ -36,7 +36,7 @@ struct Screen3PantryPreview: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 2)
+            ProgressDots(total: 10, current: 2)
                 .padding(.top, 20)
                 .padding(.bottom, 20)
 
@@ -54,12 +54,9 @@ struct Screen3PantryPreview: View {
             }
             .padding(.bottom, 20)
 
-            (Text("Know what to cook ")
+            Text("Know what to cook \(Text("tonight.").font(.ftDisplay(28)).foregroundColor(.green100))")
                 .font(.ftDisplay(28))
                 .foregroundColor(.textPrimary)
-            + Text("tonight.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 12)
 

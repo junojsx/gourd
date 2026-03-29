@@ -12,7 +12,7 @@ struct Screen5Notifications: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 4)
+            ProgressDots(total: 10, current: 4)
                 .padding(.top, 20)
                 .padding(.bottom, 20)
 
@@ -28,26 +28,22 @@ struct Screen5Notifications: View {
                     timeLabel: "1 day before",
                     badgeColor: .amber100,
                     title: "Gourdo",
-                    message: "Your avocados expire tomorrow. We\u{2019}ve got a 20-min recipe ready."
+                    message: "Your avocados expire tomorrow. We've got a 20-min recipe ready."
                 )
                 OBNotificationBanner(
                     timeLabel: "Same day",
                     badgeColor: .red400,
                     title: "Gourdo",
-                    message: "Last chance \u{2014} spinach expires today. Cook Now before it\u{2019}s gone."
+                    message: "Last chance \u{2014} spinach expires today. Cook Now before it's gone."
                 )
             }
             .padding(.bottom, 24)
 
-            (Text("We\u{2019}ll remind you before it\u{2019}s ")
+            Text("We'll remind you before it's \(Text("too late.").foregroundColor(.green100))")
                 .font(.ftDisplay(28))
                 .foregroundColor(.textPrimary)
-            + Text("too late.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 12)
-
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
             Text("Three timely nudges \u{2014} 3-day, 1-day, and same-day \u{2014} so groceries get used, not binned. Set your preferred alert time once; we handle the rest.")
                 .font(.ftBody(14))
                 .foregroundColor(.textSecondary)

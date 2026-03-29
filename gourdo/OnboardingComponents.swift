@@ -184,6 +184,29 @@ struct FlowLayout: Layout {
     }
 }
 
+// MARK: - OBNumberedStep
+
+struct OBNumberedStep: View {
+    let number: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(number)
+                .font(.ftBody(11, weight: .bold))
+                .foregroundColor(.green100)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Color.green600.opacity(0.3)))
+                .overlay(Circle().stroke(Color.green600.opacity(0.4), lineWidth: 0.5))
+            Text(text)
+                .font(.ftBody(13))
+                .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+        }
+    }
+}
+
 // MARK: - ProFeatureRow
 
 struct ProFeatureRow: View {

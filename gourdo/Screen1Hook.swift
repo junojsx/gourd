@@ -13,7 +13,7 @@ struct Screen1Hook: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 0)
+            ProgressDots(total: 10, current: 0)
                 .padding(.top, 20)
                 .padding(.bottom, 32)
 
@@ -43,15 +43,9 @@ struct Screen1Hook: View {
             .padding(.bottom, 28)
 
             // Headline
-            (Text("Stop throwing ")
+            Text("Stop throwing \(Text("money").foregroundStyle(Color.green100)) in the trash.")
                 .font(.ftDisplay(28))
-                .foregroundColor(.textPrimary)
-            + Text("money")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100)
-            + Text(" in the trash.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.textPrimary))
+                .foregroundStyle(Color.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 12)
 

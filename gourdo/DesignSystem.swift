@@ -47,8 +47,8 @@ extension Color {
     // Card / row background
     static let ftCardBg      = adaptiveColor(light: "FFFFFF", dark: "1A1A18")
 
-    // Primary action button fill — dark green in both modes (never goes white)
-    static let ftPrimaryBg   = adaptiveColor(light: "2D3A2D", dark: "2A4A2E")
+    // Primary action button fill — dark green in light, accent green in dark
+    static let ftPrimaryBg   = adaptiveColor(light: "2D3A2D", dark: "97C459")
 
     // Alerts
     static let ftCrimson     = adaptiveColor(light: "7E2224", dark: "E24B4A")

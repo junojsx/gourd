@@ -18,7 +18,9 @@ struct FeedbackWebView: UIViewControllerRepresentable {
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = false
         let vc = SFSafariViewController(url: url, configuration: config)
-        vc.preferredControlTintColor = UIColor(Color.ftOlive)
+        if #unavailable(iOS 26.0) {
+            vc.preferredControlTintColor = UIColor(Color.ftOlive)
+        }
         return vc
     }
 

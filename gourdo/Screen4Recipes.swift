@@ -13,7 +13,7 @@ struct Screen4Recipes: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ProgressDots(total: 7, current: 3)
+            ProgressDots(total: 10, current: 3)
                 .padding(.top, 20)
                 .padding(.bottom, 20)
 
@@ -70,17 +70,11 @@ struct Screen4Recipes: View {
             .cornerRadius(16)
             .padding(.bottom, 20)
 
-            (Text("Dinner ideas from ")
+            Text("Dinner ideas from \(Text("your").foregroundColor(.green100)) fridge.")
                 .font(.ftDisplay(28))
                 .foregroundColor(.textPrimary)
-            + Text("your")
-                .font(.ftDisplay(28))
-                .foregroundColor(.green100)
-            + Text(" fridge.")
-                .font(.ftDisplay(28))
-                .foregroundColor(.textPrimary))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12) as! Text
 
             Text("Before anything goes bad, Gourdo suggests recipes built around your expiring ingredients \u{2014} powered by Claude AI.")
                 .font(.ftBody(14))
